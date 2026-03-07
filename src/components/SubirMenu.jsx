@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { db } from './firebase';
+import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, setDoc, getDoc } from 'firebase/firestore';
 import * as pdfjsLib from 'pdfjs-dist';
-import Modal from './components/Modal';
-import Spinner from './components/Spinner';
+import Modal from './Modal';
+import Spinner from './Spinner';
 import './SubirMenu.css';
 
 // Configurar el worker de PDF.js
@@ -425,6 +425,133 @@ const SubirMenu = () => {
     }
   };
 
+  // ---- Parser local: no requiere API de IA ----
+  const parseMenuFromText = (rawText, structure) => {
+    const removeAccents = s =>
+      s.replace(/[\u00e1\u00e0\u00e2\u00e4]/ig, 'a')
+        .replace(/[\u00e9\u00e8\u00ea\u00eb]/ig, 'e')
+        .replace(/[\u00ed\u00ec\u00ee\u00ef]/ig, 'i')
+        .replace(/[\u00f3\u00f2\u00f4\u00f6]/ig, 'o')
+        .replace(/[\u00fa\u00f9\u00fb\u00fc]/ig, 'u')
+        .replace(/[\u00f1]/ig, 'n');
+    const normKey = s => removeAccents(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    // Avanza caracter a caracter en [line] hasta consumir todos los chars alfanumericos del [alias]
+    const extractDesc = (line, alias) => {
+      let ai = 0, li = 0;
+      while (li < line.length && ai < alias.length) {
+        const ch = removeAccents(line[li]).toUpperCase();
+        if (/[A-Z0-9]/.test(ch)) { if (ch === alias[ai]) ai++; else break; }
+        li++;
+      }
+      while (li < line.length && /[:\s]/.test(line[li])) li++;
+      return line.slice(li).trim();
+    };
+
+    // Construir mapa de categorias desde menuStructure.opciones
+    const cats = {};
+    (structure?.opciones || []).forEach(op => {
+      cats[normKey(op)] = { key: op.toLowerCase().replace(/\s+/g, ''), label: op };
+    });
+
+    // findKey: retorna solo el key. findEntry: retorna {key, label}
+    const findEntry = (...keywords) => {
+      for (const kw of keywords) {
+        const nkw = normKey(kw);
+        if (cats[nkw]) return cats[nkw];
+        const found = Object.entries(cats).find(([k]) => k.includes(nkw) || nkw.includes(k));
+        if (found) return found[1];
+      }
+      return null;
+    };
+    const findKey = (...keywords) => findEntry(...keywords)?.key || null;
+
+    const pebeteEntry = findEntry('PBT', 'Pebete', 'PEBETE', 'MENUPBT');
+    const sandMigaEntry = findEntry('Sand De Miga', 'Sandwich', 'SANDDEMIGA', 'SANDWICHDEMIGA');
+    const EXTRA = {
+      'BETIJAI': { key: findKey('Beti Jai', 'BetiJai', 'BETIJAI') || 'betijai', label: 'Beti Jai', fixedDesc: null },
+      'SANDWICHDEMIGA': { key: sandMigaEntry?.key || 'sanddemiga', label: sandMigaEntry?.label || 'Sand De Miga', fixedDesc: null },
+      'OPCIONPEBETE': { key: pebeteEntry?.key || 'menupbtx2', label: pebeteEntry?.label || 'Menu PBT X 2', fixedDesc: pebeteEntry?.label || 'Menu PBT X 2' },
+      'OPCIONPEBETEX2': { key: pebeteEntry?.key || 'menupbtx2', label: pebeteEntry?.label || 'Menu PBT X 2', fixedDesc: pebeteEntry?.label || 'Menu PBT X 2' },
+      'DIETABLANDA': { key: findKey('Dieta Blanda', 'DIETABLANDA') || 'dietablanda', label: 'Dieta Blanda', fixedDesc: 'Dieta Blanda' },
+      'POSTRESAELECCION': { key: findKey('Postre', 'POSTRE') || 'postre', label: 'Postres', fixedDesc: null },
+    };
+    // Ordenar de mas largo a mas corto para evitar matches parciales
+    const catEntries = Object.entries({ ...cats, ...EXTRA })
+      .sort((a, b) => b[0].length - a[0].length);
+
+    const DAYS = { LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miercoles', JUEVES: 'jueves', VIERNES: 'viernes' };
+    const STOP_DAYS = ['SABADO', 'DOMINGO'];
+    const STOP_CATS = ['PEDIDOS']; // Solo bloquear la linea de contacto al final
+
+    const result = {
+      temporada: '', semana: '',
+      dias: {
+        lunes: { esFeriado: false }, martes: { esFeriado: false }, miercoles: { esFeriado: false },
+        jueves: { esFeriado: false }, viernes: { esFeriado: false }
+      }
+    };
+
+    const lines = rawText.split('\n')
+      .map(l => l.replace(/ \| /g, ' / ').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim())
+      .filter(l => l && !l.match(/^-{3,}/));
+
+    // Header: temporada y semana
+    const header = lines.slice(0, 4).join(' ');
+    const tmpM = header.match(/(VERANO|INVIERNO|OTO[N\u00d1]O|PRIMAVERA)\s*\d*/i);
+    if (tmpM) result.temporada = tmpM[0].trim();
+    const semM = header.match(/SEMANA\s+\d+/i);
+    if (semM) result.semana = semM[0].trim();
+
+    let currentDay = null;
+    let currentCatKey = null;
+    let stopCats = false;
+
+    for (const line of lines) {
+      const ln = normKey(line);
+      if (!ln) continue;
+
+      // Fin de semana -> parar
+      if (STOP_DAYS.some(d => ln === d)) { currentDay = null; continue; }
+
+      // Encabezado de dia
+      const dayK = Object.keys(DAYS).find(d => normKey(d) === ln);
+      if (dayK) { currentDay = DAYS[dayK]; currentCatKey = null; stopCats = false; continue; }
+      if (!currentDay) continue;
+
+      // Detener categorias al llegar a POSTRES
+      if (STOP_CATS.some(k => ln.startsWith(k))) { stopCats = true; currentCatKey = null; continue; }
+      if (stopCats) continue;
+
+      // Intentar hacer match de una categoria
+      const catMatch = catEntries.find(([alias]) => ln.startsWith(alias));
+      if (catMatch) {
+        const [alias, info] = catMatch;
+        const catKey = typeof info === 'object' ? info.key : info;
+        const label = typeof info === 'object' ? info.label : alias;
+        const fixedDesc = typeof info === 'object' ? info.fixedDesc : null;
+        currentCatKey = catKey;
+
+        let desc;
+        if (fixedDesc !== null && fixedDesc !== undefined) {
+          desc = fixedDesc; // descripcion fija (DIETA BLANDA, PEBETE, etc.)
+        } else {
+          desc = extractDesc(line, alias);
+          if (!desc) desc = label;
+        }
+        result.dias[currentDay][catKey] = desc;
+      } else if (currentCatKey) {
+        // Linea de continuacion: agregar a la descripcion actual
+        const curr = result.dias[currentDay][currentCatKey];
+        if (curr && curr !== '(X2)') {
+          result.dias[currentDay][currentCatKey] = curr + ' ' + line;
+        }
+      }
+    }
+
+    return result;
+  };
+
   const handlePdfUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -507,23 +634,48 @@ const SubirMenu = () => {
         fullText += pageText + '\n\n-------------------\n\n';
       }
 
-      // Procesar el texto con GPT
-      const menuData = await processMenuWithGPT(fullText);
+      // Parser local (sin IA)
+      const parsedMenu = parseMenuFromText(fullText, menuStructure);
 
-      // Actualizar el estado con los datos procesados
       setMenuData(prevData => ({
         ...prevData,
-        temporada: menuData.temporada,
-        semana: menuData.semana,
-        dias: menuData.dias
+        temporada: parsedMenu.temporada,
+        semana: parsedMenu.semana,
+        dias: parsedMenu.dias
       }));
 
-      setModal({
-        isOpen: true,
-        title: 'Éxito',
-        message: 'Menú procesado correctamente',
-        type: 'success'
+      // Validar campos vacios
+      const camposVacios = [];
+      const diasNombres = { lunes: 'Lunes', martes: 'Martes', miercoles: 'Miercoles', jueves: 'Jueves', viernes: 'Viernes' };
+      if (!parsedMenu.temporada) camposVacios.push('Temporada');
+      if (!parsedMenu.semana) camposVacios.push('Semana');
+
+      Object.entries(diasNombres).forEach(([diaKey, diaLabel]) => {
+        const diaData = parsedMenu.dias[diaKey];
+        if (diaData?.esFeriado) return;
+        (menuStructure?.opciones || []).forEach(opcion => {
+          const key = opcion.toLowerCase().replace(/\s+/g, '');
+          if (!diaData?.[key]) {
+            camposVacios.push(`${diaLabel} - ${opcion}`);
+          }
+        });
       });
+
+      if (camposVacios.length > 0) {
+        setModal({
+          isOpen: true,
+          title: 'Advertencia',
+          message: `Menu procesado pero los siguientes campos quedaron vacios:\n\n${camposVacios.map(c => '• ' + c).join('\n')}\n\nPor favor, completa manualmente los campos faltantes antes de guardar.`,
+          type: 'warning'
+        });
+      } else {
+        setModal({
+          isOpen: true,
+          title: 'Exito',
+          message: 'Menu procesado correctamente. Todos los campos fueron completados.',
+          type: 'success'
+        });
+      }
     } catch (error) {
       console.error('Error al procesar el PDF:', error);
       setModal({

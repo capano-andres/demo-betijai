@@ -5,529 +5,245 @@ import './ConfiguracionOpciones.css';
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-const OPCIONES_MENU = [
-  { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÍA" },
-  { value: "beti_jai_con_postre", label: "BETI JAI C/POSTRE" },
-  { value: "beti_jai_con_gelatina", label: "BETI JAI C/GELATINA" },
-  { value: "pastas_con_postre", label: "PASTAS C/POSTRE" },
-  { value: "pastas_con_gelatina", label: "PASTAS C/GELATINA" },
-  { value: "light_con_postre", label: "LIGHT C/POSTRE" },
-  { value: "light_con_gelatina", label: "LIGHT C/GELATINA" },
-  { value: "clasico_con_postre", label: "CLASICO C/POSTRE" },
-  { value: "clasico_con_gelatina", label: "CLASICO C/GELATINA" },
-  { value: "ensalada_con_postre", label: "ENSALADA C/POSTRE" },
-  { value: "ensalada_con_gelatina", label: "ENSALADA C/GELATINA" },
-  { value: "dieta_blanda_con_postre", label: "DIETA BLANDA C/POSTRE" },
-  { value: "dieta_blanda_con_gelatina", label: "DIETA BLANDA C/GELATINA" },
-  { value: "menu_pbt_2_con_postre", label: "MENU PBT X 2 C/POSTRE" },
-  { value: "menu_pbt_2_con_gelatina", label: "MENU PBT X 2 C/GELATINA" },
-  { value: "sand_miga_con_postre", label: "SAND DE MIGA C/POSTRE" },
-  { value: "sand_miga_con_gelatina", label: "SAND DE MIGA C/GELATINA" }
+const MENUS_DEFAULT = [
+  'BETI JAI', 'CLASICO', 'DIETA BLANDA', 'ENSALADA',
+  'LIGHT', 'MENU PBT X 2', 'PASTAS', 'SAND DE MIGA'
+];
+const POSTRES_DEFAULT = ['C/GELATINA', 'C/POSTRE', 'C/YOGURT'];
+const BEBIDAS_DEFAULT = [
+  'AGUA CON GAS', 'AGUA SIN GAS', 'AQUARIOS MANZANA',
+  'COCA', 'COCA ZERO', 'SPRITE'
 ];
 
-const OPCIONES_MENU_COMPLETO = [
-  { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÍA" },
-  { value: "beti_jai_gelatina", label: "BETI JAI C/GELATINA" },
-  { value: "beti_jai_manzana", label: "BETI JAI C/MANZANA" },
-  { value: "beti_jai_naranja", label: "BETI JAI C/NARANJA" },
-  { value: "beti_jai_pomelo", label: "BETI JAI C/POMELO" },
-  { value: "beti_jai_banana", label: "BETI JAI C/BANANA" },
-  { value: "pastas_gelatina", label: "PASTAS C/GELATINA" },
-  { value: "pastas_manzana", label: "PASTAS C/MANZANA" },
-  { value: "pastas_naranja", label: "PASTAS C/NARANJA" },
-  { value: "pastas_pomelo", label: "PASTAS C/POMELO" },
-  { value: "pastas_banana", label: "PASTAS C/BANANA" },
-  { value: "light_gelatina", label: "LIGHT C/GELATINA" },
-  { value: "light_manzana", label: "LIGHT C/MANZANA" },
-  { value: "light_naranja", label: "LIGHT C/NARANJA" },
-  { value: "light_pomelo", label: "LIGHT C/POMELO" },
-  { value: "light_banana", label: "LIGHT C/BANANA" },
-  { value: "clasico_gelatina", label: "CLASICO C/GELATINA" },
-  { value: "clasico_manzana", label: "CLASICO C/MANZANA" },
-  { value: "clasico_naranja", label: "CLASICO C/NARANJA" },
-  { value: "clasico_pomelo", label: "CLASICO C/POMELO" },
-  { value: "clasico_banana", label: "CLASICO C/BANANA" },
-  { value: "ensalada_gelatina", label: "ENSALADA C/GELATINA" },
-  { value: "ensalada_manzana", label: "ENSALADA C/MANZANA" },
-  { value: "ensalada_naranja", label: "ENSALADA C/NARANJA" },
-  { value: "ensalada_pomelo", label: "ENSALADA C/POMELO" },
-  { value: "ensalada_banana", label: "ENSALADA C/BANANA" },
-  { value: "dieta_blanda_gelatina", label: "DIETA BLANDA C/GELATINA" },
-  { value: "dieta_blanda_manzana", label: "DIETA BLANDA C/MANZANA" },
-  { value: "dieta_blanda_naranja", label: "DIETA BLANDA C/NARANJA" },
-  { value: "dieta_blanda_pomelo", label: "DIETA BLANDA C/POMELO" },
-  { value: "dieta_blanda_banana", label: "DIETA BLANDA C/BANANA" },
-  { value: "menu_pbt_2_gelatina", label: "MENU PBT X 2 C/GELATINA" },
-  { value: "menu_pbt_2_manzana", label: "MENU PBT X 2 C/MANZANA" },
-  { value: "menu_pbt_2_naranja", label: "MENU PBT X 2 C/NARANJA" },
-  { value: "menu_pbt_2_pomelo", label: "MENU PBT X 2 C/POMELO" },
-  { value: "menu_pbt_2_banana", label: "MENU PBT X 2 C/BANANA" },
-  { value: "sand_miga_gelatina", label: "SAND DE MIGA C/GELATINA" },
-  { value: "sand_miga_manzana", label: "SAND DE MIGA C/MANZANA" },
-  { value: "sand_miga_naranja", label: "SAND DE MIGA C/NARANJA" },
-  { value: "sand_miga_pomelo", label: "SAND DE MIGA C/POMELO" },
-  { value: "sand_miga_banana", label: "SAND DE MIGA C/BANANA" }
-];
+const buildDefault = () => ({
+  menus: Object.fromEntries(DIAS_SEMANA.map(d => [d, [...MENUS_DEFAULT]])),
+  postres: [...POSTRES_DEFAULT],
+  bebidas: [...BEBIDAS_DEFAULT],
+});
 
-const OPCIONES_DEFAULT = {
-  Lunes: OPCIONES_MENU.map(op => op.label),
-  Martes: OPCIONES_MENU.map(op => op.label),
-  Miércoles: OPCIONES_MENU.map(op => op.label),
-  Jueves: OPCIONES_MENU_COMPLETO.map(op => op.label),
-  Viernes: OPCIONES_MENU.map(op => op.label)
-};
+const DOC_ID = 'opcionesMenuCascada';
 
 const ConfiguracionOpciones = ({ readOnly = false }) => {
-  const [opciones, setOpciones] = useState(OPCIONES_DEFAULT);
+  const [config, setConfig] = useState(buildDefault());
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [nuevaOpcion, setNuevaOpcion] = useState({
-    Lunes: '',
-    Martes: '',
-    Miércoles: '',
-    Jueves: '',
-    Viernes: ''
-  });
-  const [editandoOpcion, setEditandoOpcion] = useState({
-    dia: null,
-    index: null,
-    texto: ''
-  });
+  const [activeDia, setActiveDia] = useState('Lunes');
+  const [inputs, setInputs] = useState({ menu: '', postre: '', bebida: '' });
 
-  useEffect(() => {
-    cargarOpciones();
-  }, []);
+  useEffect(() => { cargar(); }, []);
 
-  const cargarOpciones = async () => {
+  const cargar = async () => {
     try {
       const db = getFirestore();
-      const configRef = doc(db, 'config', 'opcionesMenu');
-      const docSnap = await getDoc(configRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const opcionesFormateadas = {};
-        DIAS_SEMANA.forEach(dia => {
-          const opcionesDelDia = Array.isArray(data[dia]) && data[dia].length > 0
-            ? data[dia]
-            : OPCIONES_DEFAULT[dia];
-
-          // Ordenar alfabéticamente, pero "NO PEDIR" siempre va primero
-          const opcionesOrdenadas = opcionesDelDia.sort((a, b) => {
-            // "NO PEDIR" siempre va primero
-            const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
-            const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-
-            if (aIsNoPedir && !bIsNoPedir) return -1;
-            if (!aIsNoPedir && bIsNoPedir) return 1;
-
-            // El resto se ordena alfabéticamente
-            return a.trim()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .toLowerCase()
-              .localeCompare(
-                b.trim()
-                  .normalize('NFD')
-                  .replace(/[\u0300-\u036f]/g, '')
-                  .toLowerCase()
-              );
-          });
-
-          opcionesFormateadas[dia] = opcionesOrdenadas;
-        });
-        setOpciones(opcionesFormateadas);
+      const ref = doc(db, 'config', DOC_ID);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        setConfig(snap.data());
       } else {
-        console.log('Creando opciones por defecto en Firestore');
-        await setDoc(configRef, OPCIONES_DEFAULT);
-        setOpciones(OPCIONES_DEFAULT);
-        setModal({
-          isOpen: true,
-          title: 'Información',
-          message: 'Se han creado las opciones por defecto en la base de datos.',
-          type: 'info'
-        });
+        const defaults = buildDefault();
+        await setDoc(ref, defaults);
+        setConfig(defaults);
       }
-    } catch (error) {
-      console.error('Error al cargar opciones:', error);
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Error al cargar las opciones: ' + error.message,
-        type: 'error'
-      });
-      setOpciones(OPCIONES_DEFAULT);
+    } catch (e) {
+      setModal({ isOpen: true, title: 'Error', message: e.message, type: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleNuevaOpcion = (dia, valor) => {
-    setNuevaOpcion(prev => ({
-      ...prev,
-      [dia]: valor
-    }));
-  };
-
-  const agregarOpcion = (dia) => {
-    if (!nuevaOpcion[dia]) {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Por favor ingresa una opción',
-        type: 'error'
-      });
-      return;
-    }
-
-    if (opciones[dia].includes(nuevaOpcion[dia])) {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Esta opción ya existe para este día',
-        type: 'error'
-      });
-      return;
-    }
-
-    setOpciones(prev => {
-      const nuevasOpciones = [...prev[dia], nuevaOpcion[dia]];
-
-      // Ordenar alfabéticamente, pero "NO PEDIR" siempre va primero
-      const opcionesOrdenadas = nuevasOpciones.sort((a, b) => {
-        // "NO PEDIR" siempre va primero
-        const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
-        const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-
-        if (aIsNoPedir && !bIsNoPedir) return -1;
-        if (!aIsNoPedir && bIsNoPedir) return 1;
-
-        // El resto se ordena alfabéticamente
-        return a.trim()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase()
-          .localeCompare(
-            b.trim()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .toLowerCase()
-          );
-      });
-
-      return {
-        ...prev,
-        [dia]: opcionesOrdenadas
-      };
-    });
-
-    setNuevaOpcion(prev => ({
-      ...prev,
-      [dia]: ''
-    }));
-  };
-
-  const eliminarOpcion = (dia, opcionAEliminar) => {
-    if (opcionAEliminar === "NO PEDIR") {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'No se puede eliminar la opción "NO PEDIR"',
-        type: 'error'
-      });
-      return;
-    }
-    setOpciones(prev => ({
-      ...prev,
-      [dia]: prev[dia].filter(opcion => opcion !== opcionAEliminar)
-    }));
-  };
-
-  const iniciarEdicion = (dia, index, texto) => {
-    // No permitir editar "NO PEDIR"
-    if (texto.trim().toUpperCase().includes('NO PEDIR')) {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'No se puede editar la opción "NO PEDIR"',
-        type: 'error'
-      });
-      return;
-    }
-
-    setEditandoOpcion({
-      dia,
-      index,
-      texto
-    });
-  };
-
-  const cancelarEdicion = () => {
-    setEditandoOpcion({
-      dia: null,
-      index: null,
-      texto: ''
-    });
-  };
-
-  const guardarEdicion = (dia, index) => {
-    if (!editandoOpcion.texto.trim()) {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'La opción no puede estar vacía',
-        type: 'error'
-      });
-      return;
-    }
-
-    // Verificar si ya existe una opción con ese texto (excluyendo la actual)
-    const opcionesActuales = opciones[dia];
-    const opcionExistente = opcionesActuales.find((opcion, i) =>
-      i !== index && opcion.trim() === editandoOpcion.texto.trim()
-    );
-
-    if (opcionExistente) {
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Ya existe una opción con ese texto',
-        type: 'error'
-      });
-      return;
-    }
-
-    setOpciones(prev => {
-      const nuevasOpciones = [...prev[dia]];
-      nuevasOpciones[index] = editandoOpcion.texto.trim();
-
-      // Reordenar alfabéticamente después de la edición
-      const opcionesOrdenadas = nuevasOpciones.sort((a, b) => {
-        // "NO PEDIR" siempre va primero
-        const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
-        const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-
-        if (aIsNoPedir && !bIsNoPedir) return -1;
-        if (!aIsNoPedir && bIsNoPedir) return 1;
-
-        // El resto se ordena alfabéticamente
-        return a.trim()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase()
-          .localeCompare(
-            b.trim()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .toLowerCase()
-          );
-      });
-
-      return {
-        ...prev,
-        [dia]: opcionesOrdenadas
-      };
-    });
-
-    cancelarEdicion();
-  };
-
-  const guardarOpciones = async () => {
+  const guardar = async () => {
     try {
-      setIsLoading(true);
+      setIsSaving(true);
       const db = getFirestore();
-      const configRef = doc(db, 'config', 'opcionesMenu');
-
-      // Asegurarse de que todas las opciones sean arrays
-      const opcionesFormateadas = {};
-      DIAS_SEMANA.forEach(dia => {
-        opcionesFormateadas[dia] = Array.isArray(opciones[dia]) ? opciones[dia] : [];
-      });
-
-      // console.log('Guardando opciones en Firestore:', opcionesFormateadas);
-
-      // Guardar en Firestore
-      await setDoc(configRef, opcionesFormateadas);
-
-      // Verificar que los datos se guardaron correctamente
-      const docSnap = await getDoc(configRef);
-      if (!docSnap.exists()) {
-        throw new Error('No se pudo verificar el guardado');
-      }
-
-      const datosGuardados = docSnap.data();
-      // console.log('Datos guardados en Firestore:', datosGuardados);
-
-      setModal({
-        isOpen: true,
-        title: 'Éxito',
-        message: 'Opciones guardadas exitosamente',
-        type: 'success'
-      });
-    } catch (error) {
-      console.error('Error al guardar opciones:', error);
-      setModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Error al guardar las opciones: ' + error.message,
-        type: 'error'
-      });
+      await setDoc(doc(db, 'config', DOC_ID), config);
+      setModal({ isOpen: true, title: 'Éxito', message: 'Configuración guardada correctamente.', type: 'success' });
+    } catch (e) {
+      setModal({ isOpen: true, title: 'Error', message: e.message, type: 'error' });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  if (isLoading) {
-    return <div className="configuracion-loading">Cargando...</div>;
-  }
+  const agregarMenu = () => {
+    const val = inputs.menu.trim().toUpperCase();
+    if (!val) return;
+    if (config.menus?.[activeDia]?.includes(val)) {
+      setModal({ isOpen: true, title: 'Aviso', message: 'Este menú ya existe para este día.', type: 'info' });
+      return;
+    }
+    setConfig(prev => ({
+      ...prev,
+      menus: { ...prev.menus, [activeDia]: [...(prev.menus[activeDia] || []), val].sort() }
+    }));
+    setInputs(prev => ({ ...prev, menu: '' }));
+  };
+
+  const eliminarMenu = (dia, item) => {
+    setConfig(prev => ({
+      ...prev,
+      menus: { ...prev.menus, [dia]: prev.menus[dia].filter(x => x !== item) }
+    }));
+  };
+
+  const agregarGlobal = (campo) => {
+    const val = inputs[campo].trim().toUpperCase();
+    if (!val) return;
+    if (config[campo]?.includes(val)) {
+      setModal({ isOpen: true, title: 'Aviso', message: 'Esta opción ya existe.', type: 'info' });
+      return;
+    }
+    setConfig(prev => ({ ...prev, [campo]: [...(prev[campo] || []), val].sort() }));
+    setInputs(prev => ({ ...prev, [campo]: '' }));
+  };
+
+  const eliminarGlobal = (campo, item) => {
+    setConfig(prev => ({ ...prev, [campo]: prev[campo].filter(x => x !== item) }));
+  };
+
+  const copyMenuToAllDays = () => {
+    const source = config.menus?.[activeDia] || [];
+    setConfig(prev => ({
+      ...prev,
+      menus: Object.fromEntries(DIAS_SEMANA.map(d => [d, [...source]]))
+    }));
+    setModal({ isOpen: true, title: 'Copiado', message: `Menús de ${activeDia} copiados a todos los días.`, type: 'success' });
+  };
+
+  if (isLoading) return <div className="configuracion-loading">Cargando...</div>;
 
   return (
     <div className="configuracion-opciones">
       <h2>Configuración de Opciones del Menú</h2>
       <p className="instrucciones">
-        Agrega o elimina las opciones disponibles para cada día de la semana.
-        Estas opciones aparecerán en el formulario de pedidos.
+        Definí los menús disponibles por día, los postres y las bebidas.
+        En el formulario de pedidos, el usuario elegirá primero el menú, luego el postre y la bebida.
       </p>
 
       {!readOnly && (
-        <button
-          className="guardar-btn"
-          onClick={guardarOpciones}
-          disabled={isLoading}
-          style={{ marginBottom: '2rem' }}
-        >
-          {isLoading ? 'Guardando...' : 'Guardar Configuración'}
+        <button className="guardar-btn" onClick={guardar} disabled={isSaving} style={{ marginBottom: '2rem' }}>
+          {isSaving ? 'Guardando...' : 'Guardar Configuración'}
         </button>
       )}
 
-      <div className="opciones-grid">
-        {DIAS_SEMANA.map(dia => (
-          <div key={dia} className="dia-opciones">
-            <h3>{dia}</h3>
+      {/* === MENÚS POR DÍA === */}
+      <div className="config-section">
+        <div className="config-section-header">
+          <h3 className="config-section-title">🍽 Menús disponibles</h3>
+          {!readOnly && (
+            <button className="copy-days-btn" onClick={copyMenuToAllDays} title={`Copiar menús de ${activeDia} a todos los días`}>
+              📋 Copiar a todos los días
+            </button>
+          )}
+        </div>
 
-            <div className="opciones-actuales">
-              <h4>Opciones Actuales</h4>
-              <div className="opciones-lista">
-                {Array.isArray(opciones[dia]) && opciones[dia].map((opcion, index) => (
-                  <div key={index} className="opcion-item">
-                    {editandoOpcion.dia === dia && editandoOpcion.index === index ? (
-                      <div className="edicion-opcion">
-                        <input
-                          type="text"
-                          value={editandoOpcion.texto}
-                          onChange={(e) => setEditandoOpcion(prev => ({ ...prev, texto: e.target.value }))}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              guardarEdicion(dia, index);
-                            } else if (e.key === 'Escape') {
-                              cancelarEdicion();
-                            }
-                          }}
-                          autoFocus
-                          style={{
-                            flex: 1,
-                            padding: '0.3rem',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '0.9rem'
-                          }}
-                        />
-                        <button
-                          className="guardar-edicion-btn"
-                          onClick={() => guardarEdicion(dia, index)}
-                          style={{
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.3rem 0.6rem',
-                            marginLeft: '0.5rem',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem'
-                          }}
-                        >
-                          ✓
-                        </button>
-                        <button
-                          className="cancelar-edicion-btn"
-                          onClick={cancelarEdicion}
-                          style={{
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.3rem 0.6rem',
-                            marginLeft: '0.3rem',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span>{opcion}</span>
-                        {!readOnly && (
-                          <div className="opcion-buttons">
-                            <button
-                              className="editar-btn"
-                              onClick={() => iniciarEdicion(dia, index, opcion)}
-                              title={opcion.trim().toUpperCase().includes('NO PEDIR') ? "Esta opción no se puede editar" : "Editar esta opción"}
-                              disabled={opcion.trim().toUpperCase().includes('NO PEDIR')}
-                              style={{
-                                background: opcion.trim().toUpperCase().includes('NO PEDIR') ? '#9ca3af' : '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.2rem 0.4rem',
-                                marginRight: '0.3rem',
-                                cursor: opcion.trim().toUpperCase().includes('NO PEDIR') ? 'not-allowed' : 'pointer',
-                                fontSize: '0.7rem',
-                                opacity: opcion.trim().toUpperCase().includes('NO PEDIR') ? 0.5 : 1
-                              }}
-                            >
-                              ✎
-                            </button>
-                            <button
-                              className="eliminar-btn"
-                              onClick={() => eliminarOpcion(dia, opcion)}
-                              title={opcion === "NO PEDIR" ? "Esta opción no se puede eliminar" : "Eliminar esta opción"}
-                              disabled={opcion === "NO PEDIR"}
-                              style={opcion === "NO PEDIR" ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="dia-tabs">
+          {DIAS_SEMANA.map(d => (
+            <button
+              key={d}
+              className={`dia-tab${activeDia === d ? ' active' : ''}`}
+              onClick={() => setActiveDia(d)}
+            >
+              {d}
+              <span className="dia-tab-count">{config.menus?.[d]?.length || 0}</span>
+            </button>
+          ))}
+        </div>
 
-            {!readOnly && (
-              <div className="agregar-opcion">
-                <h4>Agregar Nueva Opción</h4>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    value={nuevaOpcion[dia]}
-                    onChange={(e) => handleNuevaOpcion(dia, e.target.value)}
-                    placeholder="Nueva opción..."
-                  />
-                  <button
-                    className="agregar-btn"
-                    onClick={() => agregarOpcion(dia)}
-                  >
-                    Agregar
-                  </button>
-                </div>
+        <div className="config-section-body">
+          {(!config.menus?.[activeDia]?.length) && (
+            <p className="no-items-msg">No hay menús configurados para este día.</p>
+          )}
+          <div className="chips-container">
+            {(config.menus?.[activeDia] || []).map((item, i) => (
+              <div key={i} className="chip">
+                <span>{item}</span>
+                {!readOnly && (
+                  <button onClick={() => eliminarMenu(activeDia, item)} className="chip-delete">×</button>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+          {!readOnly && (
+            <div className="chip-input-group">
+              <input
+                type="text"
+                value={inputs.menu}
+                onChange={e => setInputs(prev => ({ ...prev, menu: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && agregarMenu()}
+                placeholder="Nuevo menú (ej: VEGANO)..."
+                className="chip-input"
+              />
+              <button onClick={agregarMenu} className="chip-add-btn">+ Agregar</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* === POSTRES === */}
+      <div className="config-section">
+        <div className="config-section-header">
+          <h3 className="config-section-title">🍮 Postres <span className="global-badge">Global · todos los días</span></h3>
+        </div>
+        <div className="config-section-body">
+          {(!config.postres?.length) && <p className="no-items-msg">No hay postres configurados.</p>}
+          <div className="chips-container">
+            {(config.postres || []).map((item, i) => (
+              <div key={i} className="chip chip-postre">
+                <span>{item}</span>
+                {!readOnly && (
+                  <button onClick={() => eliminarGlobal('postres', item)} className="chip-delete">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {!readOnly && (
+            <div className="chip-input-group">
+              <input
+                type="text"
+                value={inputs.postre}
+                onChange={e => setInputs(prev => ({ ...prev, postre: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && agregarGlobal('postres')}
+                placeholder="Nuevo postre (ej: C/FLAN)..."
+                className="chip-input"
+              />
+              <button onClick={() => agregarGlobal('postres')} className="chip-add-btn">+ Agregar</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* === BEBIDAS === */}
+      <div className="config-section">
+        <div className="config-section-header">
+          <h3 className="config-section-title">🥤 Bebidas <span className="global-badge">Global · todos los días</span></h3>
+        </div>
+        <div className="config-section-body">
+          {(!config.bebidas?.length) && <p className="no-items-msg">No hay bebidas configuradas.</p>}
+          <div className="chips-container">
+            {(config.bebidas || []).map((item, i) => (
+              <div key={i} className="chip chip-bebida">
+                <span>{item}</span>
+                {!readOnly && (
+                  <button onClick={() => eliminarGlobal('bebidas', item)} className="chip-delete">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {!readOnly && (
+            <div className="chip-input-group">
+              <input
+                type="text"
+                value={inputs.bebida}
+                onChange={e => setInputs(prev => ({ ...prev, bebida: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && agregarGlobal('bebidas')}
+                placeholder="Nueva bebida (ej: JUGO NARANJA)..."
+                className="chip-input"
+              />
+              <button onClick={() => agregarGlobal('bebidas')} className="chip-add-btn">+ Agregar</button>
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal
@@ -541,4 +257,4 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
   );
 };
 
-export default ConfiguracionOpciones; 
+export default ConfiguracionOpciones;

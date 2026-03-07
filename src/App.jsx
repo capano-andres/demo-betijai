@@ -1,13 +1,13 @@
 // src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './Login';
-import AdminDashboard from './AdminDashboard';
-import Formulario from './Formulario';
+import Login from './components/Login';
+import AdminDashboard from './components/AdminDashboard';
+import Formulario from './components/Formulario';
 import MenuSelector from './components/MenuSelector';
 import CierreSemanalPage from './components/CierreSemanalPage';
 import EditarUsuario from './components/EditarUsuario';
-import ProtectedRoute from './ProtectedRoute';
+import ProtectedRoute from './components/ProtectedRoute';
 import AutoRedirect from './components/AutoRedirect';
 import './App.css';
 

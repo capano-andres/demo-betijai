@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { auth } from './firebase';
+import { auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
-import Spinner from './components/Spinner';
+import { db } from '../firebase';
+import Spinner from './Spinner';
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const [user, setUser] = useState(null);

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp, query, where } from "firebase/firestore";
-import { db, secondaryAuth } from "./firebase";
+import { db, secondaryAuth } from "../firebase";
 import { getAuth, createUserWithEmailAndPassword, deleteUser, signInWithEmailAndPassword } from "firebase/auth";
-import Modal from './components/Modal';
-import Spinner from './components/Spinner';
+import Modal from './Modal';
+import Spinner from './Spinner';
 import "./AdminUsers.css";
 
 // Flag global para pausar listeners durante creación de usuarios

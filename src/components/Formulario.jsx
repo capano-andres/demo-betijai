@@ -3,8 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
-import Modal from './components/Modal';
-import Spinner from './components/Spinner';
+import Modal from './Modal';
+import Spinner from './Spinner';
 import "./Formulario.css";
 
 const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -49,9 +49,34 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   const [precioMenu, setPrecioMenu] = useState(2000);
   const [porcentajeBonificacion, setPorcentajeBonificacion] = useState(70);
 
-  // Calcular día de la semana y semana seleccionada dentro del componente
+  // --- Cascada selects ---
+  const [opcionesCascada, setOpcionesCascada] = useState(null);
+  const [seleccion, setSeleccion] = useState({
+    lunes: { menu: '', postre: '', bebida: '' },
+    martes: { menu: '', postre: '', bebida: '' },
+    miercoles: { menu: '', postre: '', bebida: '' },
+    jueves: { menu: '', postre: '', bebida: '' },
+    viernes: { menu: '', postre: '', bebida: '' },
+  });
+
+  const parseSeleccionFromString = (str) => {
+    if (!str || str === '') return { menu: '', postre: '', bebida: '' };
+    if (str === 'no_pedir') return { menu: 'NO PEDIR', postre: '', bebida: '' };
+    // Format: "MENU C/POSTRE Y BEBIDA"
+    const yIdx = str.lastIndexOf(' Y ');
+    if (yIdx === -1) return { menu: '', postre: '', bebida: '' };
+    const bebida = str.substring(yIdx + 3);
+    const menuPostre = str.substring(0, yIdx);
+    const cIdx = menuPostre.indexOf(' C/');
+    if (cIdx === -1) return { menu: '', postre: '', bebida: '' };
+    const menu = menuPostre.substring(0, cIdx);
+    const postre = 'C/' + menuPostre.substring(cIdx + 3);
+    return { menu, postre, bebida };
+  };
+
+  // Calcular dÃ­a de la semana y semana seleccionada dentro del componente
   const hoy = new Date();
-  const diaSemana = hoy.getDay(); // 0 = domingo, 6 = sábado
+  const diaSemana = hoy.getDay(); // 0 = domingo, 6 = sÃbado
 
   // 1. Utilidad para calcular el lunes de la semana de una fecha
   function getMonday(date) {
@@ -59,73 +84,73 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
     d.setDate(diff);
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     return d;
   }
 
-  // 2. Calcular semana actual y próxima
+  // 2. Calcular semana actual y prÃ³xima
   const lunesActual = getMonday(hoy);
   const lunesProxima = new Date(lunesActual);
   lunesProxima.setDate(lunesActual.getDate() + 7);
 
-  // 3. Determinar qué semana mostrar según el día y la lógica de negocio
+  // 3. Determinar quÃ© semana mostrar segÃºn el dÃ­a y la lÃ³gica de negocio
   let semanaSeleccionadaDate = lunesActual;
   let esProximaSemana = false;
-  if (diaSemana === 6 || diaSemana === 0) { // Sábado o domingo
+  if (diaSemana === 6 || diaSemana === 0) { // SÃbado o domingo
     semanaSeleccionadaDate = lunesProxima;
     esProximaSemana = true;
   }
-  const semanaSeleccionadaStr = semanaSeleccionadaDate.toISOString().slice(0,10);
+  const semanaSeleccionadaStr = semanaSeleccionadaDate.toISOString().slice(0, 10);
 
-  // Utilidad para saber si un día es anterior al actual
+  // Utilidad para saber si un dÃ­a es anterior al actual
   function isPastDay(dia, hoy) {
     const diaSemana = hoy.getDay();
-    // Si es fin de semana (sábado o domingo), permitir todos los días
+    // Si es fin de semana (sÃbado o domingo), permitir todos los dÃ­as
     if (diaSemana === 0 || diaSemana === 6) {
       return false;
     }
     const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
     const diaActual = dias[diaSemana - 1];
-    // Si es lunes y es el día actual, no es un día pasado
+    // Si es lunes y es el dÃ­a actual, no es un dÃ­a pasado
     if (dia === 'lunes' && diaSemana === 1) {
       return false;
     }
     return dias.indexOf(dia) < dias.indexOf(diaActual);
   }
 
-  // Utilidad para saber si es el día actual y ya pasó de las 8:30
+  // Utilidad para saber si es el dÃ­a actual y ya pasÃ³ de las 8:30
   function isCurrentDayAndLate(dia, hoy) {
     const diaSemana = hoy.getDay();
     const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
     const diaActual = dias[diaSemana - 1] || 'lunes';
     if (dia !== diaActual) return false;
-    
+
     // Obtener la hora actual en Argentina
     const horaArgentina = new Date(hoy.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
     const hora = horaArgentina.getHours();
     const minutos = horaArgentina.getMinutes();
-    
+
     /*console.log('Verificando si es tarde para', dia, ':', {
       horaArgentina: horaArgentina.toLocaleTimeString(),
       hora,
       minutos,
       esTardio: hora > 8 || (hora === 8 && minutos > 30)
     }); */
-    
+
     return hora > 8 || (hora === 8 && minutos > 30);
   }
 
-  // Función para verificar si un día está disponible para pedir
+  // FunciÃ³n para verificar si un dÃ­a estÃ disponible para pedir
   function isDiaDisponible(dia, ahora) {
     const diaSemana = ahora.getDay();
     const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
     const diaActual = dias[diaSemana - 1] || 'lunes';
-    
+
     // Obtener la hora actual en Argentina
     const horaArgentina = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
     const hora = horaArgentina.getHours();
     const minutos = horaArgentina.getMinutes();
-    
+
     /*console.log('Verificando disponibilidad para:', {
       dia,
       diaSemana,
@@ -134,39 +159,39 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       hora,
       minutos
     });*/
-    
-    // Si es fin de semana, todos los días están disponibles
+
+    // Si es fin de semana, todos los dÃ­as estÃn disponibles
     if (diaSemana === 0 || diaSemana === 6) {
-      //console.log('Es fin de semana, todos los días disponibles');
+      //console.log('Es fin de semana, todos los dÃ­as disponibles');
       return true;
     }
 
-    // Si es el día actual, verificar la hora
+    // Si es el dÃ­a actual, verificar la hora
     if (dia === diaActual) {
       const esDisponible = hora < 8 || (hora === 8 && minutos <= 30);
-      
-      /*console.log('Es el día actual:', {
+
+      /*console.log('Es el dÃ­a actual:', {
         dia,
         hora,
         minutos,
         esDisponible
       });*/
-      
+
       return esDisponible;
     }
 
-    // Si es un día futuro
+    // Si es un dÃ­a futuro
     const esFuturo = dias.indexOf(dia) > dias.indexOf(diaActual);
-    /* console.log('Es día futuro:', {
+    /* console.log('Es dÃ­a futuro:', {
       dia,
       diaActual,
       esFuturo
     }); */
-    
+
     return esFuturo;
   }
 
-  // Agrega esta función arriba de handleSubmit o cerca del inicio del archivo
+  // Agrega esta funciÃ³n arriba de handleSubmit o cerca del inicio del archivo
   function getSemanaTexto(lunesStr) {
     const lunes = new Date(lunesStr);
     const viernes = new Date(lunesStr);
@@ -179,66 +204,71 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        // Cargar estructura del menú desde Firestore
+        // Cargar estructura del menÃº desde Firestore
         const structureRef = doc(db, 'config', 'menuStructure');
         const structureSnap = await getDoc(structureRef);
         if (structureSnap.exists()) {
           const structure = structureSnap.data();
-          // console.log('Estructura del menú cargada:', structure);
+          // console.log('Estructura del menÃº cargada:', structure);
           setMenuStructure(structure);
         }
 
-        // Cargar opciones de menú desde Firestore
+        // Cargar opciones de menÃº (legacy flat)
         const opcionesRef = doc(db, 'config', 'opcionesMenu');
         const opcionesSnap = await getDoc(opcionesRef);
         if (opcionesSnap.exists()) {
-          const opcionesData = opcionesSnap.data();
-          // console.log('Opciones cargadas desde Firestore:', opcionesData);
-          setOpcionesMenuConfig(opcionesData);
+          setOpcionesMenuConfig(opcionesSnap.data());
         }
 
-        // Consultar fechas de configuración
+        // Cargar opciones en cascada (nuevo)
+        const cascadaRef = doc(db, 'config', 'opcionesMenuCascada');
+        const cascadaSnap = await getDoc(cascadaRef);
+        if (cascadaSnap.exists()) {
+          setOpcionesCascada(cascadaSnap.data());
+        }
+
+        // Consultar fechas de configuraciÃ³n
         const ref = doc(db, 'config', 'fechasLimite');
         const snap = await getDoc(ref);
         let fechaLimitePedido = null;
         let fechaInicioPedido = null;
-        
+
         if (snap.exists()) {
           const data = snap.data();
           // console.log('Datos de fechas desde Firestore:', data);
-          
-          // Procesar fecha límite
+
+          // Procesar fecha lÃ­mite
           fechaLimitePedido = data.proximaSemana?.toDate ? data.proximaSemana.toDate() : new Date(data.proximaSemana);
-          // console.log('Fecha límite procesada:', fechaLimitePedido);
-          
+          // console.log('Fecha lÃ­mite procesada:', fechaLimitePedido);
+
           // Procesar fecha de inicio
           fechaInicioPedido = data.inicioPedidos?.toDate ? data.inicioPedidos.toDate() : new Date(data.inicioPedidos);
           // console.log('Fecha de inicio procesada:', fechaInicioPedido);
-          
+
           setFechaLimite(fechaLimitePedido);
           setFechaInicio(fechaInicioPedido);
-          
+
           const ahora = new Date();
           // console.log('Fecha actual:', ahora);
-          // console.log('¿Estamos dentro del rango?', {
+          // console.log('ÂEstamos dentro del rango?', {
           // console.log('Estado de fechas:', {
-          // console.log('No se encontraron fechas en la configuración');
-          
+          // console.log('No se encontraron fechas en la configuraciÃ³n');
+
           const esTardioActual = fechaLimitePedido && ahora > fechaLimitePedido;
           const esMuyTempranoActual = fechaInicioPedido && ahora < fechaInicioPedido;
-          
+
           // console.log('Estado de fechas:', {
           // console.log('esTardio:', esTardioActual);
           // console.log('esMuyTemprano:', esMuyTempranoActual);
           // console.log('ahora:', ahora);
           // console.log('fechaInicio:', fechaInicioPedido);
           // console.log('fechaLimite:', fechaLimitePedido);
-          
+
           setEsTardio(esTardioActual);
           setEsMuyTemprano(esMuyTempranoActual);
-          
+
           if (esMuyTempranoActual) {
-            setMensajeTemprano(`Los pedidos estarán disponibles a partir del ${fechaInicioPedido.toLocaleDateString('es-AR', {
+            setMensajeTemprano(`Los pedidos estarÃn disponibles a partir del ${fechaInicioPedido.toLocaleDateString('es-AR', {
               day: 'numeric',
               month: 'long',
               year: 'numeric',
@@ -247,10 +277,10 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             })}`);
           }
         } else {
-          // console.log('No se encontraron fechas en la configuración');
+          // console.log('No se encontraron fechas en la configuraciÃ³n');
         }
 
-        // Lógica ultra-tardía mejorada
+        // LÃ³gica ultra-tardÃ­a mejorada
         if (fechaLimitePedido && new Date() > fechaLimitePedido) {
           if (tipo === 'actual') {
             const diaSemana = ahora.getDay();
@@ -270,18 +300,18 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               }
               return indiceDia > diaSemana;
             });
-            // console.log('Días disponibles calculados:', diasDisponibles);
+            // console.log('DÃ­as disponibles calculados:', diasDisponibles);
 
-          } 
+          }
           setSemanaSeleccionada('proxima');
-          setMensajeTardio('Puedes realizar pedidos tardes para la próxima semana.');
+          setMensajeTardio('Puedes realizar pedidos tardes para la prÃ³xima semana.');
           setEsTardio(true);
           setEsMuyTemprano(false);
         } else {
-          // console.log('No es pedido tardío, configurando días disponibles');
-          // Habilitar días según el tipo y el día actual
+          // console.log('No es pedido tardÃ­o, configurando dÃ­as disponibles');
+          // Habilitar dÃ­as segÃºn el tipo y el dÃ­a actual
           if (tipo === 'proxima') {
-            
+
           } else {
             const diaSemana = ahora.getDay();
             // Obtener la hora actual en Argentina
@@ -318,18 +348,18 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
           }
         }
 
-        // Cargar el menú semanal según el tipo
+        // Cargar el menÃº semanal segÃºn el tipo
         const menuRef = doc(db, 'menus', tipo === 'actual' ? 'menuActual' : 'menuProxima');
         const menuDoc = await getDoc(menuRef);
-        
+
         if (menuDoc.exists()) {
           const menuData = menuDoc.data();
-          // console.log("Menú cargado:", menuData);
-          
+          // console.log("MenÃº cargado:", menuData);
+
           const menuFormateado = {
             LUNES: menuData.dias.lunes?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este día
+                FERIADO - No hay servicio de comida este dÃ­a
               </div>
             ) : (
               <div className="menu-items">
@@ -349,7 +379,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       return (
                         <div key={key} className="sandwich-miga">
                           <h4>Sandwich de Miga</h4>
-                          <p>{value.tipo} ({value.cantidad} triángulos)</p>
+                          <p>{value.tipo} ({value.cantidad} triÃngulos)</p>
                         </div>
                       );
                     }
@@ -380,7 +410,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             MARTES: menuData.dias.martes?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este día
+                FERIADO - No hay servicio de comida este dÃ­a
               </div>
             ) : (
               <div className="menu-items">
@@ -400,7 +430,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       return (
                         <div key={key} className="sandwich-miga">
                           <h4>Sandwich de Miga</h4>
-                          <p>{value.tipo} ({value.cantidad} triángulos)</p>
+                          <p>{value.tipo} ({value.cantidad} triÃngulos)</p>
                         </div>
                       );
                     }
@@ -431,7 +461,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             MIERCOLES: menuData.dias.miercoles?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este día
+                FERIADO - No hay servicio de comida este dÃ­a
               </div>
             ) : (
               <div className="menu-items">
@@ -451,7 +481,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       return (
                         <div key={key} className="sandwich-miga">
                           <h4>Sandwich de Miga</h4>
-                          <p>{value.tipo} ({value.cantidad} triángulos)</p>
+                          <p>{value.tipo} ({value.cantidad} triÃngulos)</p>
                         </div>
                       );
                     }
@@ -482,7 +512,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             JUEVES: menuData.dias.jueves?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este día
+                FERIADO - No hay servicio de comida este dÃ­a
               </div>
             ) : (
               <div className="menu-items">
@@ -502,7 +532,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       return (
                         <div key={key} className="sandwich-miga">
                           <h4>Sandwich de Miga</h4>
-                          <p>{value.tipo} ({value.cantidad} triángulos)</p>
+                          <p>{value.tipo} ({value.cantidad} triÃngulos)</p>
                         </div>
                       );
                     }
@@ -533,7 +563,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             VIERNES: menuData.dias.viernes?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este día
+                FERIADO - No hay servicio de comida este dÃ­a
               </div>
             ) : (
               <div className="menu-items">
@@ -553,7 +583,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       return (
                         <div key={key} className="sandwich-miga">
                           <h4>Sandwich de Miga</h4>
-                          <p>{value.tipo} ({value.cantidad} triángulos)</p>
+                          <p>{value.tipo} ({value.cantidad} triÃngulos)</p>
                         </div>
                       );
                     }
@@ -583,19 +613,19 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               </div>
             )
           };
-          
-          // console.log("Menú formateado:", menuFormateado);
+
+          // console.log("MenÃº formateado:", menuFormateado);
           setMenuSemanal(menuFormateado);
           setMenuData(menuData);
           setHayCambios(menuData.hayCambios || false);
           setDiasModificados(menuData.diasModificados || []);
           setUltimaModificacion(menuData.ultimaModificacion);
         } else {
-          // console.log("No se encontró ningún menú");
+          // console.log("No se encontrÃ³ ningÃºn menÃº");
           setMenuSemanal(null);
         }
 
-        // Cargar el pedido del usuario si está autenticado
+        // Cargar el pedido del usuario si estÃ autenticado
         if (!readOnly && auth.currentUser) {
           let pedidos = [];
           try {
@@ -622,12 +652,20 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               })[0];
 
               setMenuActual(pedidoMasReciente);
-              setData({
+              const parsedData = {
                 lunes: pedidoMasReciente.lunes?.pedido || "",
                 martes: pedidoMasReciente.martes?.pedido || "",
                 miercoles: pedidoMasReciente.miercoles?.pedido || "",
                 jueves: pedidoMasReciente.jueves?.pedido || "",
                 viernes: pedidoMasReciente.viernes?.pedido || ""
+              };
+              setData(parsedData);
+              setSeleccion({
+                lunes: parseSeleccionFromString(parsedData.lunes),
+                martes: parseSeleccionFromString(parsedData.martes),
+                miercoles: parseSeleccionFromString(parsedData.miercoles),
+                jueves: parseSeleccionFromString(parsedData.jueves),
+                viernes: parseSeleccionFromString(parsedData.viernes),
               });
             }
           } catch (error) {
@@ -650,15 +688,15 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   useEffect(() => {
     // Calcular el precio total cuando cambian los datos
     const diasSeleccionados = Object.entries(data).filter(([dia, valor]) => {
-      // Solo contar días que tengan un valor y no sean "no_pedir"
+      // Solo contar dÃ­as que tengan un valor y no sean "no_pedir"
       return valor && valor !== "" && valor !== "no_pedir";
     }).length;
-    
+
     setPrecioTotal(diasSeleccionados * precioPorDia);
   }, [data, precioPorDia]);
 
   useEffect(() => {
-    // Cuando se carga el menú, establecer automáticamente "no_pedir" para los días feriados
+    // Cuando se carga el menÃº, establecer automÃticamente "no_pedir" para los dÃ­as feriados
     if (menuData) {
       setData(prevData => {
         const newData = {
@@ -670,21 +708,21 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
           viernes: menuData.dias.viernes.esFeriado ? "no_pedir" : prevData.viernes,
         };
 
-        // Si hay un pedido tardío existente, marcar los días como tardíos
+        // Si hay un pedido tardÃ­o existente, marcar los dÃ­as como tardÃ­os
         if (menuActual && menuActual.esTardio) {
           const ahora = new Date();
           const diaActual = ahora.getDay();
           const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-          
+
           const nuevosDiasTardios = {};
           Object.entries(menuActual).forEach(([dia, valor]) => {
             if (valor && valor !== 'no_pedir' && diasSemana.includes(dia)) {
               const indiceDia = diasSemana.indexOf(dia);
-              // Si es el día actual o anterior, es tardío
+              // Si es el dÃ­a actual o anterior, es tardÃ­o
               nuevosDiasTardios[dia] = indiceDia <= diaActual;
             }
           });
-          
+
           setDiasTardios(nuevosDiasTardios);
         }
 
@@ -693,7 +731,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     }
   }, [menuData, menuActual]);
 
-  // Mover la lógica de días tardíos a un useEffect con dependencias correctas
+  // Mover la lÃ³gica de dÃ­as tardÃ­os a un useEffect con dependencias correctas
   useEffect(() => {
     if (tipo === 'actual' && menuActual) {
       const ahora = new Date();
@@ -717,23 +755,118 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setData((prevData) => ({ ...prevData, [name]: value }));
+  };
+
+  const handleSeleccionCascada = (dia, campo, valor) => {
+    setSeleccion(prev => {
+      const nueva = { ...prev[dia], [campo]: valor };
+      if (campo === 'menu') { nueva.postre = ''; nueva.bebida = ''; }
+      let pedidoStr = '';
+      if (nueva.menu === 'NO PEDIR') {
+        pedidoStr = 'no_pedir';
+      } else if (nueva.menu && nueva.postre && nueva.bebida) {
+        pedidoStr = `${nueva.menu} ${nueva.postre} Y ${nueva.bebida}`;
+      }
+      setData(prevData => ({ ...prevData, [dia]: pedidoStr }));
+      return { ...prev, [dia]: nueva };
+    });
+  };
+
+  const renderDiaFormulario = (diaKey, diaLabel, diaFirestore) => {
+    const esFeriado = menuData?.dias[diaFirestore]?.esFeriado;
+    const yaTienePedido = menuActual?.[diaKey]?.pedido && menuActual[diaKey].pedido !== 'no_pedir';
+    const isDisabled = esFeriado ||
+      (tipo === 'actual' && (yaTienePedido || !isDiaDisponible(diaKey, ahora)));
+    // || (diaSemana === 0 || diaSemana === 6); // TEMP: deshabilitado para pruebas
+    const sel = seleccion[diaKey] || { menu: '', postre: '', bebida: '' };
+    const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const menusKey = opcionesCascada?.menus ? (Object.keys(opcionesCascada.menus).find(k => norm(k) === norm(diaLabel)) || diaLabel) : diaLabel;
+    const menusList = opcionesCascada?.menus?.[menusKey] || [];
+    const postresList = opcionesCascada?.postres || [];
+    const bebidasList = opcionesCascada?.bebidas || [];
+    return (
+      <div key={diaKey} className="formulario-item">
+
+
+
+
+        {esFeriado ? (
+          <div className="formulario-feriado-mensaje">FERIADO - No hay servicio de comida este dia</div>
+        ) : (
+          <>
+            {diasTardios?.[diaKey] && <div className="formulario-dia-tardio">Pedido tardio</div>}
+            {opcionesCascada ? (
+              <div className="formulario-cascada">
+                <select
+                  className="formulario-select"
+                  value={sel.menu}
+                  onChange={e => handleSeleccionCascada(diaKey, 'menu', e.target.value)}
+                  disabled={isDisabled}
+                >
+                  <option value="">-- Menu --</option>
+                  <option value="NO PEDIR">NO PEDIR COMIDA ESTE DIA</option>
+                  {menusList.map((m, i) => <option key={i} value={m}>{m}</option>)}
+                </select>
+                {sel.menu && sel.menu !== 'NO PEDIR' && (
+                  <select
+                    className="formulario-select"
+                    value={sel.postre}
+                    onChange={e => handleSeleccionCascada(diaKey, 'postre', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">-- Postre --</option>
+                    {postresList.map((p, i) => <option key={i} value={p}>{p}</option>)}
+                  </select>
+                )}
+                {sel.menu && sel.menu !== 'NO PEDIR' && sel.postre && (
+                  <select
+                    className="formulario-select"
+                    value={sel.bebida}
+                    onChange={e => handleSeleccionCascada(diaKey, 'bebida', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">-- Bebida --</option>
+                    {bebidasList.map((b, i) => <option key={i} value={b}>{b}</option>)}
+                  </select>
+                )}
+                {data[diaKey] && data[diaKey] !== 'no_pedir' && (
+                  <div className="cascada-preview">{data[diaKey]}</div>
+                )}
+              </div>
+            ) : (
+              <select
+                name={diaKey}
+                className="formulario-select"
+                value={data[diaKey]}
+                onChange={handleChange}
+                disabled={isDisabled}
+              >
+                <option value="">Selecciona una opciÃ³n</option>
+                {opcionesMenuConfig?.[diaLabel]
+                  ?.sort((a, b) => { if (a === 'NO PEDIR') return -1; if (b === 'NO PEDIR') return 1; return a.localeCompare(b); })
+                  .map((opcion, i) => (
+                    <option key={i} value={opcion.toLowerCase().replace(/\s+/g, '_')}>{opcion}</option>
+                  ))}
+              </select>
+            )}
+          </>
+        )}
+      </div>
+    );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Verificar que todos los días tengan una opción seleccionada, excepto los que no están disponibles
+    // Verificar que todos los dÃ­as tengan una opciÃ³n seleccionada, excepto los que no estÃn disponibles
     const diasSinSeleccion = Object.entries(data)
       .filter(([key, value]) => {
         const esFeriado = menuData?.dias[key]?.esFeriado;
         const esDiaPasado = isPastDay(key, ahora);
         const esDiaActualTardio = isCurrentDayAndLate(key, ahora);
         const estaDisponible = !esDiaPasado && !esDiaActualTardio;
-        // Considerar "no_pedir" como una selección válida
+        // Considerar "no_pedir" como una selecciÃ³n vÃlida
         return !esFeriado && estaDisponible && key !== 'precioTotal' && !value && value !== "no_pedir";
       })
       .map(([key]) => key);
@@ -741,8 +874,8 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     if (diasSinSeleccion.length > 0) {
       setModal({
         isOpen: true,
-        title: 'Días sin selección',
-        message: `Por favor selecciona una opción para los siguientes días: ${diasSinSeleccion.join(', ')}`,
+        title: 'DÃ­as sin selecciÃ³n',
+        message: `Por favor selecciona una opciÃ³n para los siguientes dÃ­as: ${diasSinSeleccion.join(', ')}`,
         type: 'warning'
       });
       return;
@@ -759,7 +892,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       const diaSemana = ahora.getDay();
       const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
 
-      // Determinar el tipo correcto según el tipo del formulario
+      // Determinar el tipo correcto segÃºn el tipo del formulario
       const tipoPedido = tipo;
 
       // Crear la nueva estructura de datos para el pedido
@@ -767,9 +900,9 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
         lunes: {
           pedido: data.lunes,
           esTardio: esFinDeSemana || tipo === 'actual' ? (
-            // Si es un pedido nuevo o no existía antes
+            // Si es un pedido nuevo o no existÃ­a antes
             (!menuActual?.lunes?.pedido || menuActual.lunes.pedido === "no_pedir") ||
-            // O si ya era tardío antes
+            // O si ya era tardÃ­o antes
             menuActual?.lunes?.esTardio
           ) : false
         },
@@ -840,11 +973,11 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       };
       setMenuActual(pedidoActualizado);
 
-      // Esperar a que el estado se actualice antes de mostrar el modal de éxito
+      // Esperar a que el estado se actualice antes de mostrar el modal de Ã©xito
       await new Promise(resolve => setTimeout(resolve, 100));
       setModal({
         isOpen: true,
-        title: 'Éxito',
+        title: 'Ã‰xito',
         message: esPedidoNuevo ? 'Pedido guardado correctamente' : 'Pedido actualizado correctamente',
         type: 'success',
         actions: [
@@ -886,16 +1019,16 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   };
 
   const handleCerrarSesion = async () => {
-    // console.log('Intentando cerrar sesión');
+    // console.log('Intentando cerrar sesiÃ³n');
     try {
       await signOut(auth);
       navigate('/');
     } catch (error) {
-      // console.error('Error al cerrar sesión:', error);
+      // console.error('Error al cerrar sesiÃ³n:', error);
       setModal({
         isOpen: true,
         title: 'Error',
-        message: 'Error al cerrar sesión: ' + error.message,
+        message: 'Error al cerrar sesiÃ³n: ' + error.message,
         type: 'error'
       });
     }
@@ -938,7 +1071,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   };
 
   const opcionesMenu = [
-    { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÍA" },
+    { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÃA" },
     { value: "beti_jai_con_postre", label: "BETI JAI C/POSTRE" },
     { value: "beti_jai_con_gelatina", label: "BETI JAI C/GELATINA" },
     { value: "pastas_con_postre", label: "PASTAS C/POSTRE" },
@@ -958,7 +1091,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   ];
 
   const opcionesMenuCompleto = [
-    { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÍA" },
+    { value: "no_pedir", label: "NO PEDIR COMIDA ESTE DÃA" },
     { value: "beti_jai_gelatina", label: "BETI JAI C/GELATINA" },
     { value: "beti_jai_manzana", label: "BETI JAI C/MANZANA" },
     { value: "beti_jai_naranja", label: "BETI JAI C/NARANJA" },
@@ -1001,7 +1134,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Función para recargar los datos
+  // FunciÃ³n para recargar los datos
   const recargarDatos = async () => {
     setIsLoading(true);
     try {
@@ -1072,17 +1205,17 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     try {
       const precioRef = doc(db, 'config', 'precioMenu');
       const precioSnap = await getDoc(precioRef);
-      
+
       if (precioSnap.exists()) {
         const data = precioSnap.data();
         setPrecioMenu(data.precio || 6400);
         setPorcentajeBonificacion(data.porcentajeBonificacion || 70);
-        
-        // Calcular el precio por día según la bonificación del usuario
+
+        // Calcular el precio por dÃ­a segÃºn la bonificaciÃ³n del usuario
         if (userData?.bonificacion) {
-          setPrecioPorDia(0); // Si está bonificado, el precio es 0
+          setPrecioPorDia(0); // Si estÃ bonificado, el precio es 0
         } else {
-          // Si no está bonificado, aplicar el porcentaje de bonificación
+          // Si no estÃ bonificado, aplicar el porcentaje de bonificaciÃ³n
           const porcentaje = parseFloat(data.porcentajeBonificacion) || 70;
           const precioConBonificacion = Math.round(data.precio * (100 - porcentaje) / 100);
           setPrecioPorDia(precioConBonificacion);
@@ -1130,38 +1263,38 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       />
       <div className="formulario-header">
         <div className="header-buttons">
-          <button 
-            type="button" 
-            onClick={handleVolver} 
+          <button
+            type="button"
+            onClick={handleVolver}
             className="volver-button"
           >
             Volver
           </button>
-          <button 
-            type="button" 
-            onClick={handleCerrarSesion} 
+          <button
+            type="button"
+            onClick={handleCerrarSesion}
             className="cerrar-sesion-button"
           >
-            Cerrar Sesión
+            Cerrar Sesion
           </button>
         </div>
         <h2 className="formulario-titulo">
           {(() => {
             if ((diaSemana === 6 || diaSemana === 0) && tipo !== 'actual') {
-              return 'Menú de la Próxima Semana';
+              return 'Menu de la Proxima Semana';
             }
-            return `Menú de la ${tipo === 'actual' ? 'Semana Actual' : 'Próxima Semana'}`;
+            return `Menu de la ${tipo === 'actual' ? 'Semana Actual' : 'Proxima Semana'}`;
           })()}
         </h2>
       </div>
 
       {!readOnly && userData && (
         <div className="bienvenida">
-          ¡Hola {userData.nombre}!
+          Hola, {userData.nombre}!
         </div>
       )}
 
-{ /*     {!readOnly && (
+      { /*     {!readOnly && (
         <div className="advertencia-seleccion" style={{
           background: '#fef3c7',
           border: '1px solid #fbbf24',
@@ -1171,26 +1304,26 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
           textAlign: 'center',
           color: '#92400e'
         }}>
-          <h3 style={{margin: '0 0 0.5rem 0'}}>⚠️ Importante</h3>
+          <h3 style={{margin: '0 0 0.5rem 0'}}>âš ï¸ Importante</h3>
           <p style={{margin: '0'}}>
             Por favor, selecciona cuidadosamente tus opciones ya que:
           </p>
           <ul style={{textAlign: 'left', margin: '0.5rem 0', paddingLeft: '1rem'}}>
             <li>No se pueden realizar modificaciones una vez cerrada la lista</li>
-            <li>Solo se puede agregar un pedido a un día que no se haya seleccionado previamente</li>
-            <li>En pedidos tardes, todos los postres serán gelatina, independientemente de la opción seleccionada</li>
+            <li>Solo se puede agregar un pedido a un dÃ­a que no se haya seleccionado previamente</li>
+            <li>En pedidos tardes, todos los postres serÃn gelatina, independientemente de la opciÃ³n seleccionada</li>
           </ul>
         </div>
       )}*/}
 
-      {/* Mostrar el rango de la semana si está disponible */}
+      {/* Mostrar el rango de la semana si estÃ disponible */}
       {menuData?.semana && (
-        <div className="menu-semana-rango" style={{textAlign:'center', marginBottom:'1rem', color:'#FFA000', fontWeight:'bold'}}>
+        <div className="menu-semana-rango" style={{ textAlign: 'center', marginBottom: '1rem', color: '#FFA000', fontWeight: 'bold' }}>
           Semana: {menuData.semana}
         </div>
       )}
 
-      {/* Cartel informativo de días disponibles */}
+      {/* Cartel informativo de dÃ­as disponibles */}
       {!readOnly && tipo === 'actual' && !(diaSemana === 6 || diaSemana === 0) && (
         <div className="dias-disponibles-alert" style={{
           background: '#f0f9ff',
@@ -1201,8 +1334,8 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
           textAlign: 'center',
           color: '#0369a1'
         }}>
-          <h3 style={{margin: '0 0 0.5rem 0'}}>📅 Días disponibles para pedir</h3>
-          <p style={{margin: '0'}}>
+          <h3 style={{ margin: '0 0 0.5rem 0' }}>ðŸ“… DÃ­as disponibles para pedir</h3>
+          <p style={{ margin: '0' }}>
             {(() => {
               const ahora = new Date();
               const diaSemana = ahora.getDay();
@@ -1211,7 +1344,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               const hora = horaArgentina.getHours();
               const minutos = horaArgentina.getMinutes();
               const antesDe830 = hora < 8 || (hora === 8 && minutos <= 30);
-              
+
               if (diaSemana >= 1 && diaSemana <= 5) {
                 const diasDisponibles = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
                   .filter(dia => {
@@ -1222,45 +1355,46 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                     return indiceDia > diaSemana;
                   })
                   .map(dia => dia.charAt(0).toUpperCase() + dia.slice(1));
-                
+
                 if (diasDisponibles.length === 0) {
-                  return 'No hay días disponibles para pedir en este momento.';
+                  return 'No hay dÃ­as disponibles para pedir en este momento.';
                 }
-                
+
                 return `Puedes pedir para: ${diasDisponibles.join(', ')}`;
               } else {
-                return 'No hay días disponibles para pedir en este momento.';
+                return 'No hay dÃ­as disponibles para pedir en este momento.';
               }
             })()}
           </p>
         </div>
       )}
 
-      {/* Mostrar el menú semanal global */}
+      {/* Mostrar el menu semanal global */}
       {menuSemanal ? (
         <>
           <div className="menu-semanal">
-            {/*tipo !== "actual" && <h2 className="menu-semanal-titulo">Menú Semanal</h2>*/}
             <div className="menu-semanal-grid">
               {Object.entries(menuSemanal).map(([dia, opciones]) => {
                 const diaLower = dia.toLowerCase();
-                const esFeriado = menuData?.dias[diaLower]?.esFeriado;
-                // console.log('Día habilitado:', !isPastDay(diaLower, ahora) && !isCurrentDayAndLate(diaLower, ahora), 'tipo:', tipo);
+                const diaKeyMap = { 'lunes':'lunes','martes':'martes','miercoles':'miercoles','jueves':'jueves','viernes':'viernes' };
+                const diaKey = diaKeyMap[diaLower] || diaLower.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                const esFeriado = menuData?.dias[diaKey]?.esFeriado;
                 return (
-                  <div key={dia} className="menu-semanal-dia" style={{width: 'fit-content'}}>
+                  <div key={dia} className="menu-semanal-dia">
                     <h3 className="menu-semanal-dia-titulo">
                       {dia}
                       {esFeriado && <span className="feriado-badge">FERIADO</span>}
                     </h3>
                     {esFeriado ? (
                       <div className="menu-opcion-feriado">
-                        FERIADO - No hay servicio de comida este día
+                        FERIADO - No hay servicio de comida este dia
                       </div>
                     ) : (
                       <div className="menu-semanal-opciones">
                         {opciones}
                       </div>
                     )}
+                    {!readOnly && !esFeriado && (() => { const labelMap = {'lunes':'Lunes','martes':'Martes','miercoles':'Miercoles','jueves':'Jueves','viernes':'Viernes'}; return renderDiaFormulario(diaKey, labelMap[diaKey] || dia, diaKey); })()}
                   </div>
                 );
               })}
@@ -1269,322 +1403,70 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
         </>
       ) : (
         <div className="no-menu-alert">
-          <h3>⚠️ Menú No Disponible</h3>
-          <p>El menú semanal aún no ha sido cargado.</p>
-          <p>Por favor, intenta más tarde o contacta al administrador.</p>
+          <h3>Menu No Disponible</h3>
+          <p>El menu semanal aun no ha sido cargado.</p>
+          <p>Por favor, intenta mas tarde o contacta al administrador.</p>
         </div>
       )}
-      
+
       {hayCambios && !readOnly && tipo !== 'actual' && (
         <div className="menu-changes-alert">
-          <h3>⚠️ Cambios en el Menú</h3>
-          <p>El menú ha sido actualizado recientemente.</p>
-          <p>Se modificaron los siguientes días: {diasModificados.map(dia => dia.charAt(0).toUpperCase() + dia.slice(1)).join(', ')}</p>
-          <p>Última actualización: {formatearFecha(ultimaModificacion)}</p>
+          <h3>Cambios en el Menu</h3>
+          <p>El menu ha sido actualizado recientemente.</p>
+          <p>Se modificaron los siguientes dias: {diasModificados.map(dia => dia.charAt(0).toUpperCase() + dia.slice(1)).join(', ')}</p>
+          <p>Ultima actualizacion: {formatearFecha(ultimaModificacion)}</p>
           <p className="recommendation">Te recomendamos revisar las opciones actualizadas antes de realizar tu pedido.</p>
         </div>
       )}
 
-      {/* Formulario para hacer/modificar pedidos - visible según reglas de semana y tardío */}
+      {/* Formulario - solo precio y boton (los selects estan dentro del grid arriba) */}
       {!readOnly && (
         <form onSubmit={handleSubmit} className="formulario">
           {((diaSemana === 6 || diaSemana === 0) && tipo !== 'actual') && (
-            <div className="tardio-alert" style={{background:'#78350f', color:'#fff', padding:'1rem', borderRadius:'8px', marginBottom:'1.5rem', textAlign:'center'}}>
-              <strong>¡Atención!</strong> Este es un pedido tarde para la próxima semana.<br />
+            <div className="tardio-alert" style={{ background: '#78350f', color: '#fff', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'center' }}>
+              <strong>Atencion!</strong> Este es un pedido tarde para la proxima semana.<br />
               {mensajeTardio}
             </div>
           )}
-          {esTardio && (
-            <div className="tardio-alert" style={{background:'#78350f', color:'#fff', padding:'1rem', borderRadius:'8px', marginBottom:'1.5rem', textAlign:'center'}}>
-              <strong>¡Importante!</strong> En pedidos tardes, todos los postres serán gelatina, independientemente de la opción seleccionada.
-            </div>
-          )}
-          <div className="formulario-grid">
-            {/* LUNES */}
-            <div className="formulario-item">
-              <label className="formulario-label">
-                Lunes<span className="required">*</span>
-                {menuData?.dias.lunes?.esFeriado && <span className="feriado-label">(Feriado)</span>}
-              </label>
-              {menuData?.dias.lunes?.esFeriado ? (
-                <div className="formulario-feriado-mensaje">
-                  FERIADO - No hay servicio de comida este día
-                </div>
-              ) : (
-                <>
-                  {diasTardios?.lunes && (
-                    <div className="formulario-dia-tardio">
-                      Pedido tardío
-                    </div>
-                  )}
-                  <select
-                    name="lunes"
-                    className="formulario-select"
-                    value={data.lunes}
-                    onChange={handleChange}
-                    disabled={
-                      menuData?.dias.lunes?.esFeriado ||
-                      (tipo === 'actual' && (
-                        (menuActual?.lunes?.pedido && menuActual.lunes.pedido !== "no_pedir") ||
-                        !isDiaDisponible('lunes', ahora)
-                      )) ||
-                      (diaSemana === 0 || diaSemana === 6)
-                    }
-                    required={!menuData?.dias.lunes?.esFeriado}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {opcionesMenuConfig?.Lunes
-                      ?.sort((a, b) => {
-                        // Si es "NO PEDIR", siempre va primero
-                        if (a === "NO PEDIR") return -1;
-                        if (b === "NO PEDIR") return 1;
-                        // El resto se ordena alfabéticamente
-                        return a.localeCompare(b);
-                      })
-                      .map((opcion, index) => (
-                        <option key={index} value={opcion.toLowerCase().replace(/\s+/g, '_')}>
-                          {opcion}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-            </div>
-            {/* MARTES */}
-            <div className="formulario-item">
-              <label className="formulario-label">
-                Martes<span className="required">*</span>
-                {menuData?.dias.martes?.esFeriado && <span className="feriado-label">(Feriado)</span>}
-              </label>
-              {menuData?.dias.martes?.esFeriado ? (
-                <div className="formulario-feriado-mensaje">
-                  FERIADO - No hay servicio de comida este día
-                </div>
-              ) : (
-                <>
-                  {diasTardios?.martes && (
-                    <div className="formulario-dia-tardio">
-                      Pedido tarde
-                    </div>
-                  )}
-                  <select
-                    name="martes"
-                    className="formulario-select"
-                    value={data.martes}
-                    onChange={handleChange}
-                    disabled={
-                      menuData?.dias.martes?.esFeriado ||
-                      (tipo === 'actual' && (
-                        (menuActual?.martes?.pedido && menuActual.martes.pedido !== "no_pedir") ||
-                        !isDiaDisponible('martes', ahora)
-                      )) ||
-                      (diaSemana === 0 || diaSemana === 6)
-                    }
-                    required={!menuData?.dias.martes?.esFeriado}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {opcionesMenuConfig?.Martes
-                      ?.sort((a, b) => {
-                        // Si es "NO PEDIR", siempre va primero
-                        if (a === "NO PEDIR") return -1;
-                        if (b === "NO PEDIR") return 1;
-                        // El resto se ordena alfabéticamente
-                        return a.localeCompare(b);
-                      })
-                      .map((opcion, index) => (
-                        <option key={index} value={opcion.toLowerCase().replace(/\s+/g, '_')}>
-                          {opcion}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-            </div>
-            {/* MIÉRCOLES */}
-            <div className="formulario-item">
-              <label className="formulario-label">
-                Miércoles<span className="required">*</span>
-                {menuData?.dias.miercoles?.esFeriado && <span className="feriado-label">(Feriado)</span>}
-              </label>
-              {menuData?.dias.miercoles?.esFeriado ? (
-                <div className="formulario-feriado-mensaje">
-                  FERIADO - No hay servicio de comida este día
-                </div>
-              ) : (
-                <>
-                  {diasTardios?.miercoles && (
-                    <div className="formulario-dia-tardio">
-                      Pedido tarde
-                    </div>
-                  )}
-                  <select
-                    name="miercoles"
-                    className="formulario-select"
-                    value={data.miercoles}
-                    onChange={handleChange}
-                    disabled={
-                      menuData?.dias.miercoles?.esFeriado ||
-                      (tipo === 'actual' && (
-                        (menuActual?.miercoles?.pedido && menuActual.miercoles.pedido !== "no_pedir") ||
-                        !isDiaDisponible('miercoles', ahora)
-                      )) ||
-                      (diaSemana === 0 || diaSemana === 6)
-                    }
-                    required={!menuData?.dias.miercoles?.esFeriado}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {opcionesMenuConfig?.['Miércoles']
-                      ?.sort((a, b) => {
-                        // Si es "NO PEDIR", siempre va primero
-                        if (a === "NO PEDIR") return -1;
-                        if (b === "NO PEDIR") return 1;
-                        // El resto se ordena alfabéticamente
-                        return a.localeCompare(b);
-                      })
-                      .map((opcion, index) => (
-                        <option key={index} value={opcion.toLowerCase().replace(/\s+/g, '_')}>
-                          {opcion}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-            </div>
-            {/* JUEVES */}
-            <div className="formulario-item">
-              <label className="formulario-label">
-                Jueves<span className="required">*</span>
-                {menuData?.dias.jueves?.esFeriado && <span className="feriado-label">(Feriado)</span>}
-              </label>
-              {menuData?.dias.jueves?.esFeriado ? (
-                <div className="formulario-feriado-mensaje">
-                  FERIADO - No hay servicio de comida este día
-                </div>
-              ) : (
-                <>
-                  {diasTardios?.jueves && (
-                    <div className="formulario-dia-tardio">
-                      Pedido tarde
-                    </div>
-                  )}
-                  <select
-                    name="jueves"
-                    className="formulario-select"
-                    value={data.jueves}
-                    onChange={handleChange}
-                    disabled={
-                      menuData?.dias.jueves?.esFeriado ||
-                      (tipo === 'actual' && (
-                        (menuActual?.jueves?.pedido && menuActual.jueves.pedido !== "no_pedir") ||
-                        !isDiaDisponible('jueves', ahora)
-                      )) ||
-                      (diaSemana === 0 || diaSemana === 6)
-                    }
-                    required={!menuData?.dias.jueves?.esFeriado}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {opcionesMenuConfig?.Jueves
-                      ?.sort((a, b) => {
-                        // Si es "NO PEDIR", siempre va primero
-                        if (a === "NO PEDIR") return -1;
-                        if (b === "NO PEDIR") return 1;
-                        // El resto se ordena alfabéticamente
-                        return a.localeCompare(b);
-                      })
-                      .map((opcion, index) => (
-                        <option key={index} value={opcion.toLowerCase().replace(/\s+/g, '_')}>
-                          {opcion}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-            </div>
-            {/* VIERNES */}
-            <div className="formulario-item">
-              <label className="formulario-label">
-                Viernes<span className="required">*</span>
-                {menuData?.dias.viernes?.esFeriado && <span className="feriado-label">(Feriado)</span>}
-              </label>
-              {menuData?.dias.viernes?.esFeriado ? (
-                <div className="formulario-feriado-mensaje">
-                  FERIADO - No hay servicio de comida este día
-                </div>
-              ) : (
-                <>
-                  {diasTardios?.viernes && (
-                    <div className="formulario-dia-tardio">
-                      Pedido tarde
-                    </div>
-                  )}
-                  <select
-                    name="viernes"
-                    className="formulario-select"
-                    value={data.viernes}
-                    onChange={handleChange}
-                    disabled={
-                      menuData?.dias.viernes?.esFeriado ||
-                      (tipo === 'actual' && (
-                        (menuActual?.viernes?.pedido && menuActual.viernes.pedido !== "no_pedir") ||
-                        !isDiaDisponible('viernes', ahora)
-                      )) ||
-                      (diaSemana === 0 || diaSemana === 6)
-                    }
-                    required={!menuData?.dias.viernes?.esFeriado}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {opcionesMenuConfig?.Viernes
-                      ?.sort((a, b) => {
-                        // Si es "NO PEDIR", siempre va primero
-                        if (a === "NO PEDIR") return -1;
-                        if (b === "NO PEDIR") return 1;
-                        // El resto se ordena alfabéticamente
-                        return a.localeCompare(b);
-                      })
-                      .map((opcion, index) => (
-                        <option key={index} value={opcion.toLowerCase().replace(/\s+/g, '_')}>
-                          {opcion}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-            </div>
-          </div>
+
+
+
+
+
 
           <div className="formulario-precio">
             <p className="formulario-precio-total">
               Precio total: ${precioTotal.toLocaleString()}
             </p>
             <p className="formulario-precio-detalle">
-              {precioTotal > 0 
-                ? `(${precioTotal / precioPorDia} día${precioTotal / precioPorDia > 1 ? 's' : ''} × $${precioPorDia.toLocaleString()})` 
-                : userData?.bonificacion 
-                  ? 'Menú bonificado (sin costo)'
-                  : 'Selecciona al menos un menú para ver el precio'}
+              {precioTotal > 0
+                ? `(${precioTotal / precioPorDia} dia${precioTotal / precioPorDia > 1 ? 's' : ''} x $${precioPorDia.toLocaleString()})`
+                : userData?.bonificacion
+                   ? 'Menu bonificado (sin costo)'
+                   : 'Selecciona al menos un menu para ver el precio'}
             </p>
           </div>
 
           {(() => {
-            // Verificar si hay algún día sin pedido y que no sea feriado
+            // Verificar si hay algÃºn dÃ­a sin pedido y que no sea feriado
             const algunDiaSinPedido = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].some(dia => {
               const esFeriado = menuData?.dias[dia]?.esFeriado;
               const tienePedido = menuActual?.[dia]?.pedido && menuActual?.[dia]?.pedido !== "no_pedir";
               const esDiaPasado = isPastDay(dia, ahora);
               const esDiaActualTardio = isCurrentDayAndLate(dia, ahora);
               const estaDisponible = !esDiaPasado && !esDiaActualTardio;
-              
-              // Considerar "no_pedir" como una selección válida
+
+              // Considerar "no_pedir" como una selecciÃ³n vÃlida
               return !esFeriado && estaDisponible && (!tienePedido || data[dia] === "no_pedir");
             });
 
-            // Si es tipo 'proxima', siempre mostrar el botón
+            // Si es tipo 'proxima', siempre mostrar el botÃ³n
             if (tipo === 'proxima') {
               return (
-                <button 
-                  type="submit" 
-                  className="formulario-boton" 
-                  disabled={isSubmitting || (diaSemana === 0 || diaSemana === 6)}
+                <button
+                  type="submit"
+                  className="formulario-boton"
+                  disabled={isSubmitting} /* TEMP: fin de semana habilitado */
                 >
                   <div className="button-content">
                     <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
@@ -1594,13 +1476,13 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               );
             }
 
-            // Para tipo 'actual', mostrar el botón solo si hay días disponibles para pedir
+            // Para tipo 'actual', mostrar el botÃ³n solo si hay dÃ­as disponibles para pedir
             if (algunDiaSinPedido) {
               return (
-                <button 
-                  type="submit" 
-                  className="formulario-boton" 
-                  disabled={isSubmitting || (diaSemana === 0 || diaSemana === 6)}
+                <button
+                  type="submit"
+                  className="formulario-boton"
+                  disabled={isSubmitting} /* TEMP: fin de semana habilitado */
                 >
                   <div className="button-content">
                     <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
@@ -1615,14 +1497,14 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
         </form>
       )}
 
-      {/* Visualización del pedido actual */}
+      {/* VisualizaciÃ³n del pedido actual */}
       {!readOnly && menuSemanal && (
         <>
           {menuActual ? (
             <div className="menu-actual">
               <div className="menu-actual-header">
                 <h2 className="menu-actual-titulo">
-                  Mi pedido para la {tipo === 'actual' ? 'semana actual' : 'próxima semana'}
+                  Mi pedido para la {tipo === 'actual' ? 'semana actual' : 'prÃ³xima semana'}
                 </h2>
               </div>
               <div className="menu-actual-contenido">
@@ -1633,11 +1515,11 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                     </p>
                     <p className="menu-actual-total">
                       Total: ${(() => {
-                        // Contar los días que tienen un pedido válido
+                        // Contar los dÃ­as que tienen un pedido vÃlido
                         const diasConPedido = Object.entries(menuActual)
-                          .filter(([key, value]) => 
-                            ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].includes(key) && 
-                            value?.pedido && 
+                          .filter(([key, value]) =>
+                            ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].includes(key) &&
+                            value?.pedido &&
                             value.pedido !== "no_pedir"
                           ).length;
                         return (diasConPedido * precioPorDia).toLocaleString();
@@ -1654,11 +1536,11 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                         <div className="menu-actual-nombre">
                           {dia.toUpperCase()}
                           {diaData?.esTardio && diaData?.pedido !== "no_pedir" && (
-                            <span className="tardio-badge" style={{marginLeft: '8px', color: '#fff', background: '#b91c1c', borderRadius: '4px', padding: '2px 6px', fontSize: '0.85em'}}>Tarde</span>
+                            <span className="tardio-badge" style={{ marginLeft: '8px', color: '#fff', background: '#b91c1c', borderRadius: '4px', padding: '2px 6px', fontSize: '0.85em' }}>Tarde</span>
                           )}
                         </div>
                         <div className={`menu-actual-plato ${diaData?.pedido === "no_pedir" ? "menu-actual-no-pedir" : ""}`}>
-                          {diaData?.pedido === "no_pedir" 
+                          {diaData?.pedido === "no_pedir"
                             ? "NO PEDIR"
                             : (opcionesMenuCompleto.find(opcion => opcion.value === diaData?.pedido)?.label || diaData?.pedido).toUpperCase()}
                         </div>

@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from './firebase';
+import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import AdminUsers from './AdminUsers';
 import MenuForm from './MenuForm';
 import SubirMenu from './SubirMenu';
-import AdminMenu from './components/AdminMenu';
-import MenuStructureManager from './components/MenuStructureManager';
-import VerPedidos from './components/VerPedidos';
-import HistorialPedidos from './components/HistorialPedidos';
-import PrecioMenu from './components/PrecioMenu';
-import CierreSemanal from './components/CierreSemanal';
-import Modal from './components/Modal';
+import AdminMenu from './AdminMenu';
+import MenuStructureManager from './MenuStructureManager';
+import VerPedidos from './VerPedidos';
+import HistorialPedidos from './HistorialPedidos';
+import PrecioMenu from './PrecioMenu';
+import CierreSemanal from './CierreSemanal';
+import Modal from './Modal';
 import { getFirestore, collection, query, where, getDocs, setDoc, doc, deleteDoc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
-import ConfiguracionOpciones from './components/ConfiguracionOpciones';
+import ConfiguracionOpciones from './ConfiguracionOpciones';
 import './AdminDashboard.css';
 
 const AdminDashboard = ({ userRole }) => {
