@@ -29,7 +29,8 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [activeDia, setActiveDia] = useState('Lunes');
-  const [inputs, setInputs] = useState({ menu: '', postre: '', bebida: '' });
+  const [inputs, setInputs] = useState({ menu: '', postres: '', bebidas: '' });
+  const [editing, setEditing] = useState(null); // { tipo: 'menus'|'postres'|'bebidas', dia?: string, index: number, value: string }
 
   useEffect(() => { cargar(); }, []);
 
@@ -57,7 +58,7 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
       setIsSaving(true);
       const db = getFirestore();
       await setDoc(doc(db, 'config', DOC_ID), config);
-      setModal({ isOpen: true, title: 'Éxito', message: 'Configuración guardada correctamente.', type: 'success' });
+      setModal({ isOpen: true, title: 'Exito', message: 'Configuracion guardada correctamente.', type: 'success' });
     } catch (e) {
       setModal({ isOpen: true, title: 'Error', message: e.message, type: 'error' });
     } finally {
@@ -69,7 +70,7 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
     const val = inputs.menu.trim().toUpperCase();
     if (!val) return;
     if (config.menus?.[activeDia]?.includes(val)) {
-      setModal({ isOpen: true, title: 'Aviso', message: 'Este menú ya existe para este día.', type: 'info' });
+      setModal({ isOpen: true, title: 'Aviso', message: 'Este menu ya existe para este dia.', type: 'info' });
       return;
     }
     setConfig(prev => ({
@@ -87,10 +88,10 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
   };
 
   const agregarGlobal = (campo) => {
-    const val = inputs[campo].trim().toUpperCase();
+    const val = (inputs[campo] || '').trim().toUpperCase();
     if (!val) return;
     if (config[campo]?.includes(val)) {
-      setModal({ isOpen: true, title: 'Aviso', message: 'Esta opción ya existe.', type: 'info' });
+      setModal({ isOpen: true, title: 'Aviso', message: 'Esta opcion ya existe.', type: 'info' });
       return;
     }
     setConfig(prev => ({ ...prev, [campo]: [...(prev[campo] || []), val].sort() }));
@@ -100,6 +101,35 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
   const eliminarGlobal = (campo, item) => {
     setConfig(prev => ({ ...prev, [campo]: prev[campo].filter(x => x !== item) }));
   };
+
+  // --- Edicion inline ---
+  const startEdit = (tipo, index, value, dia) => {
+    setEditing({ tipo, index, value, dia });
+  };
+
+  const saveEdit = () => {
+    if (!editing) return;
+    const newVal = editing.value.trim().toUpperCase();
+    if (!newVal) { setEditing(null); return; }
+
+    if (editing.tipo === 'menus') {
+      const dia = editing.dia;
+      setConfig(prev => {
+        const arr = [...(prev.menus[dia] || [])];
+        arr[editing.index] = newVal;
+        return { ...prev, menus: { ...prev.menus, [dia]: arr.sort() } };
+      });
+    } else {
+      setConfig(prev => {
+        const arr = [...(prev[editing.tipo] || [])];
+        arr[editing.index] = newVal;
+        return { ...prev, [editing.tipo]: arr.sort() };
+      });
+    }
+    setEditing(null);
+  };
+
+  const cancelEdit = () => setEditing(null);
 
   const copyMenuToAllDays = () => {
     const source = config.menus?.[activeDia] || [];
@@ -157,9 +187,20 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
           <div className="chips-container">
             {(config.menus?.[activeDia] || []).map((item, i) => (
               <div key={i} className="chip">
-                <span>{item}</span>
-                {!readOnly && (
-                  <button onClick={() => eliminarMenu(activeDia, item)} className="chip-delete">×</button>
+                {editing && editing.tipo === 'menus' && editing.dia === activeDia && editing.index === i ? (
+                  <input
+                    className="chip-edit-input"
+                    value={editing.value}
+                    onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                    onBlur={saveEdit}
+                    autoFocus
+                  />
+                ) : (
+                  <span onDoubleClick={() => !readOnly && startEdit('menus', i, item, activeDia)} title="Doble click para editar">{item}</span>
+                )}
+                {!readOnly && !editing && (
+                  <button onClick={() => eliminarMenu(activeDia, item)} className="chip-delete">x</button>
                 )}
               </div>
             ))}
@@ -190,9 +231,20 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
           <div className="chips-container">
             {(config.postres || []).map((item, i) => (
               <div key={i} className="chip chip-postre">
-                <span>{item}</span>
-                {!readOnly && (
-                  <button onClick={() => eliminarGlobal('postres', item)} className="chip-delete">×</button>
+                {editing && editing.tipo === 'postres' && editing.index === i ? (
+                  <input
+                    className="chip-edit-input"
+                    value={editing.value}
+                    onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                    onBlur={saveEdit}
+                    autoFocus
+                  />
+                ) : (
+                  <span onDoubleClick={() => !readOnly && startEdit('postres', i, item)} title="Doble click para editar">{item}</span>
+                )}
+                {!readOnly && !editing && (
+                  <button onClick={() => eliminarGlobal('postres', item)} className="chip-delete">x</button>
                 )}
               </div>
             ))}
@@ -201,8 +253,8 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
             <div className="chip-input-group">
               <input
                 type="text"
-                value={inputs.postre}
-                onChange={e => setInputs(prev => ({ ...prev, postre: e.target.value }))}
+                value={inputs.postres}
+                onChange={e => setInputs(prev => ({ ...prev, postres: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && agregarGlobal('postres')}
                 placeholder="Nuevo postre (ej: C/FLAN)..."
                 className="chip-input"
@@ -223,9 +275,20 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
           <div className="chips-container">
             {(config.bebidas || []).map((item, i) => (
               <div key={i} className="chip chip-bebida">
-                <span>{item}</span>
-                {!readOnly && (
-                  <button onClick={() => eliminarGlobal('bebidas', item)} className="chip-delete">×</button>
+                {editing && editing.tipo === 'bebidas' && editing.index === i ? (
+                  <input
+                    className="chip-edit-input"
+                    value={editing.value}
+                    onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                    onBlur={saveEdit}
+                    autoFocus
+                  />
+                ) : (
+                  <span onDoubleClick={() => !readOnly && startEdit('bebidas', i, item)} title="Doble click para editar">{item}</span>
+                )}
+                {!readOnly && !editing && (
+                  <button onClick={() => eliminarGlobal('bebidas', item)} className="chip-delete">x</button>
                 )}
               </div>
             ))}
@@ -234,8 +297,8 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
             <div className="chip-input-group">
               <input
                 type="text"
-                value={inputs.bebida}
-                onChange={e => setInputs(prev => ({ ...prev, bebida: e.target.value }))}
+                value={inputs.bebidas}
+                onChange={e => setInputs(prev => ({ ...prev, bebidas: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && agregarGlobal('bebidas')}
                 placeholder="Nueva bebida (ej: JUGO NARANJA)..."
                 className="chip-input"

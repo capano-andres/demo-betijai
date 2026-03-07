@@ -16,16 +16,16 @@ const CierreSemanal = () => {
   const verificarHorarioCierre = () => {
     const hoy = new Date();
     const hora = hoy.getHours();
-    
-    // Permitir cierre cualquier día después de las 14:00
-    const puedeCerrarAhora = hora >= 12;
+
+    // Permitir cierre cualquier día después de las 11:00
+    const puedeCerrarAhora = hora >= 11;
     setPuedeCerrar(puedeCerrarAhora);
     return puedeCerrarAhora;
   };
 
   const cerrarSemanaYGuardarHistorial = async () => {
     if (!verificarHorarioCierre()) {
-      setStatus('El cierre semanal solo está disponible después de las 12:00 horas.');
+      setStatus('El cierre semanal solo está disponible después de las 11:00 horas.');
       return;
     }
 
@@ -35,12 +35,12 @@ const CierreSemanal = () => {
 
     try {
       const db = getFirestore();
-      
+
       // 1. Obtener el menú actual
       const menuActualRef = doc(db, 'menus', 'menuActual');
       const menuActualSnap = await getDoc(menuActualRef);
       const existeMenuActual = menuActualSnap.exists();
-      
+
       // 2. Obtener el menú de la próxima semana
       const menuProximaRef = doc(db, 'menus', 'menuProxima');
       const menuProximaSnap = await getDoc(menuProximaRef);
@@ -99,7 +99,7 @@ const CierreSemanal = () => {
         fecha: Timestamp.fromDate(new Date())
       });
 
-      setStatus(existeMenuActual 
+      setStatus(existeMenuActual
         ? 'Cierre semanal completado exitosamente. Los pedidos han sido guardados en el historial.'
         : 'Cierre semanal completado exitosamente. Primera semana configurada.');
     } catch (error) {
@@ -150,7 +150,7 @@ const CierreSemanal = () => {
 
   return (
     <div className="cierre-semanal-container">
-      <button 
+      <button
         className="cerrar-semana-btn"
         onClick={handleConfirmarCerrarSemana}
         disabled={isLoading || !puedeCerrar}
@@ -158,7 +158,7 @@ const CierreSemanal = () => {
       >
         {isLoading ? 'Procesando...' : 'Cerrar semana y guardar historial'}
       </button>
-      
+
       {status && <div className="status-message">{status}</div>}
 
       <Modal

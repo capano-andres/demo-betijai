@@ -396,17 +396,39 @@
 
 .menu-semanal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
   margin-bottom: 30px;
+}
+
+@media (max-width: 1200px) {
+  .menu-semanal-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .menu-semanal-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-semanal-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-semanal-dia {
   background-color: #2a2a28;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.8rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   border: 1px solid #3a3a38;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* permite que el contenido se ajuste al ancho */
 }
 
 .menu-semanal-dia-titulo {
@@ -723,11 +745,24 @@
   gap: 8px;
 }
 
+.formulario-cascada select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 /* Separacion visual entre el menu del dia y los selects */
 .menu-semanal-dia .formulario-item {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #3a3a38;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.menu-semanal-opciones {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Asegurar que la card siempre crezca para contener los selects */
