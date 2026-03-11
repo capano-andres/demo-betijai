@@ -1104,7 +1104,47 @@ const VerPedidos = ({ tipo = 'actual', readOnly = false }) => {
               const labelMap = { 'lunes': 'Lunes', 'martes': 'Martes', 'miercoles': 'Miercoles', 'jueves': 'Jueves', 'viernes': 'Viernes' };
               const menusKey = opcionesCascada?.menus ? (Object.keys(opcionesCascada.menus).find(k => norm(k) === norm(labelMap[dia])) || labelMap[dia]) : labelMap[dia];
               const menusList = opcionesCascada?.menus?.[menusKey] || [];
-              const postresList = opcionesCascada?.postres || [];
+
+              // Resolver postres por día (auto/manual)
+              const postresBase = opcionesCascada?.postres || [];
+              const postreDesdeMenuConfig = opcionesCascada?.postreDesdeMenu;
+              let esAutoDia;
+              if (typeof postreDesdeMenuConfig === 'boolean') {
+                esAutoDia = postreDesdeMenuConfig;
+              } else if (typeof postreDesdeMenuConfig === 'object' && postreDesdeMenuConfig !== null) {
+                const matchEntry = Object.entries(postreDesdeMenuConfig).find(([k]) => norm(k) === norm(labelMap[dia]));
+                esAutoDia = matchEntry ? matchEntry[1] : true;
+              } else {
+                esAutoDia = true;
+              }
+
+              let postresList;
+              if (esAutoDia) {
+                const postreRaw = menuData?.dias?.[dia]?.postre;
+                const postreDelDia = postreRaw
+                  ? postreRaw.split('/').map(p => p.trim()).filter(p => {
+                      const upper = p.toUpperCase();
+                      return !upper.includes('GELATINA') && !upper.includes('YOGURT');
+                    })[0] || null
+                  : null;
+                const base = postresBase.length > 0 ? [...postresBase] : ['C/GELATINA', 'C/POSTRE', 'C/YOGURT'];
+                if (postreDelDia) {
+                  const postreLabel = `C/${postreDelDia.toUpperCase()}`;
+                  if (base.includes('C/POSTRE')) {
+                    postresList = base.map(p => p === 'C/POSTRE' ? postreLabel : p);
+                  } else {
+                    postresList = [postreLabel, ...base].sort();
+                  }
+                } else {
+                  postresList = base;
+                }
+              } else if (opcionesCascada?.postresPorDia) {
+                const postresDiaKey = Object.keys(opcionesCascada.postresPorDia).find(k => norm(k) === norm(labelMap[dia])) || labelMap[dia];
+                postresList = opcionesCascada.postresPorDia[postresDiaKey] || postresBase;
+              } else {
+                postresList = postresBase;
+              }
+
               const bebidasList = opcionesCascada?.bebidas || [];
               return (
                 <div key={dia} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
