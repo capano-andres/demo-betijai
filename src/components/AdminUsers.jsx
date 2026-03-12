@@ -9,7 +9,7 @@ import "./AdminUsers.css";
 // Flag global para pausar listeners durante creación de usuarios
 window.isCreatingUser = false;
 
-const AdminUsers = ({ mode = "view", readOnly = false }) => {
+const AdminUsers = ({ mode = "view", readOnly = false, canEditUsername = true }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -31,6 +31,8 @@ const AdminUsers = ({ mode = "view", readOnly = false }) => {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [editingUsernameId, setEditingUsernameId] = useState(null);
+  const [editingUsernameValue, setEditingUsernameValue] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -268,6 +270,70 @@ const AdminUsers = ({ mode = "view", readOnly = false }) => {
     }
   };
 
+  const startEditingUsername = (userId, currentUsername) => {
+    setEditingUsernameId(userId);
+    setEditingUsernameValue(currentUsername || '');
+  };
+
+  const cancelEditingUsername = () => {
+    setEditingUsernameId(null);
+    setEditingUsernameValue('');
+  };
+
+  const handleSaveUsername = async (userId) => {
+    const newUsername = editingUsernameValue.trim();
+    if (!newUsername) {
+      setModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'El nombre de usuario no puede estar vacío.',
+        type: 'error'
+      });
+      return;
+    }
+
+    try {
+      // Verificar unicidad excluyendo al usuario actual
+      const usersRef = collection(db, "users");
+      const usuarioQuery = query(usersRef, where("usuario", "==", newUsername));
+      const usuarioSnapshot = await getDocs(usuarioQuery);
+
+      const isDuplicate = usuarioSnapshot.docs.some(d => d.id !== userId);
+      if (isDuplicate) {
+        setModal({
+          isOpen: true,
+          title: 'Error',
+          message: 'El nombre de usuario ya existe. Por favor, usa un usuario diferente.',
+          type: 'error'
+        });
+        return;
+      }
+
+      await setDoc(doc(db, "users", userId), {
+        usuario: newUsername
+      }, { merge: true });
+
+      setModal({
+        isOpen: true,
+        title: 'Éxito',
+        message: 'Nombre de usuario actualizado exitosamente.',
+        type: 'success'
+      });
+
+      setEditingUsernameId(null);
+      setEditingUsernameValue('');
+      fetchUsers();
+    } catch (error) {
+      console.error('Error al actualizar nombre de usuario:', error);
+      setModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Error al actualizar el nombre de usuario: ' + error.message,
+        type: 'error'
+      });
+    }
+  };
+
   const renderUsersList = () => (
     <div className="users-list">
       <div className="users-header">
@@ -290,7 +356,35 @@ const AdminUsers = ({ mode = "view", readOnly = false }) => {
             <div key={user.id} className="user-card">
               <div className="user-info">
                 {/*<p><strong>ID:</strong> {user.id}</p>*/}
-                <p><strong>Usuario:</strong> {user.usuario || "No definido"}</p>
+                {editingUsernameId === user.id ? (
+                  <div className="username-edit-container">
+                    <strong>Usuario:</strong>
+                    <input
+                      type="text"
+                      className="username-edit-input"
+                      value={editingUsernameValue}
+                      onChange={(e) => setEditingUsernameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveUsername(user.id);
+                        if (e.key === 'Escape') cancelEditingUsername();
+                      }}
+                      autoFocus
+                    />
+                    <button className="username-save-btn" onClick={() => handleSaveUsername(user.id)} title="Guardar">✓</button>
+                    <button className="username-cancel-btn" onClick={cancelEditingUsername} title="Cancelar">✗</button>
+                  </div>
+                ) : (
+                  <p className="username-display">
+                    <strong>Usuario:</strong> {user.usuario || "No definido"}
+                    {canEditUsername && !readOnly && (
+                      <button
+                        className="edit-username-button"
+                        onClick={() => startEditingUsername(user.id, user.usuario)}
+                        title="Editar usuario"
+                      >✏️</button>
+                    )}
+                  </p>
+                )}
                 <p><strong>Email:</strong> {user.email}</p>
                 <p><strong>Legajo:</strong> {user.legajo || "No asignado"}</p>
                 <p><strong>Nombre:</strong> {user.nombre || "Sin nombre"}</p>

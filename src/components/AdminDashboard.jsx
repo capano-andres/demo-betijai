@@ -369,7 +369,7 @@ const AdminDashboard = ({ userRole }) => {
       case 'verMenuProxima':
         return <AdminMenu onMenuDeleted={() => setActiveSection('dashboard')} tipo="proxima" readOnly={isVisor} />;
       case 'usuarios':
-        return <AdminUsers mode="view" readOnly={false} />;
+        return <AdminUsers mode="view" readOnly={false} canEditUsername={!isVisor} />;
       case 'pedidosActual':
         return <VerPedidos tipo="actual" readOnly={isVisor} />;
       case 'pedidosProxima':
