@@ -10,7 +10,7 @@ import './VerPedidos.css';
 const VerPedidos = ({ tipo = 'actual', readOnly = false }) => {
   // Si el tipo es 'proxima', renderizar el componente VerPedidosProximaSemana
   if (tipo === 'proxima') {
-    return <VerPedidosProximaSemana />;
+    return <VerPedidosProximaSemana readOnly={readOnly} />;
   }
 
   const [pedidos, setPedidos] = useState([]);

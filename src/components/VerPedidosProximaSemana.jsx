@@ -6,7 +6,7 @@ import Modal from './Modal';
 import Spinner from './Spinner';
 import './VerPedidos.css';
 
-const VerPedidosProximaSemana = () => {
+const VerPedidosProximaSemana = ({ readOnly = false }) => {
   const [pedidos, setPedidos] = useState([]);
   const [contadores, setContadores] = useState({ conteo: {}, todasLasOpciones: new Set() });
   const [loading, setLoading] = useState(true);
@@ -883,7 +883,7 @@ const VerPedidosProximaSemana = () => {
           </thead>
           <tbody>
             {pedidosFiltrados.map((usuario) => (
-              <tr key={usuario.id} className={usuario.tienePedido ? '' : 'sin-pedido'} style={{ cursor: 'pointer' }} onClick={() => handleFilaClick(usuario)}>
+              <tr key={usuario.id} className={usuario.tienePedido ? '' : 'sin-pedido'} style={{ cursor: readOnly ? 'default' : 'pointer' }} onClick={() => !readOnly && handleFilaClick(usuario)}>
                 <td>{usuario.nombre}</td>
                 <td>{usuario.legajo}</td>
                 <td>{usuario.fecha ? formatearFecha(usuario.fecha) : ''}</td>
