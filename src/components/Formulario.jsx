@@ -1584,10 +1584,12 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                             <span className="tardio-badge" style={{ marginLeft: '8px', color: '#fff', background: '#b91c1c', borderRadius: '4px', padding: '2px 6px', fontSize: '0.85em' }}>Tarde</span>
                           )}
                         </div>
-                        <div className={`menu-actual-plato ${diaData?.pedido === "no_pedir" ? "menu-actual-no-pedir" : ""}`}>
+                        <div className={`menu-actual-plato ${diaData?.pedido === "no_pedir" || !diaData?.pedido ? "menu-actual-no-pedir" : ""}`}>
                           {diaData?.pedido === "no_pedir"
                             ? "NO PEDIR"
-                            : (opcionesMenuCompleto.find(opcion => opcion.value === diaData?.pedido)?.label || diaData?.pedido).toUpperCase()}
+                            : !diaData?.pedido
+                              ? "NO SE SOLICITO MENU PARA ESTE DIA"
+                              : (opcionesMenuCompleto.find(opcion => opcion.value === diaData?.pedido)?.label || diaData?.pedido).toUpperCase()}
                         </div>
                       </div>
                     );
