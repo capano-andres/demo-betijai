@@ -17,8 +17,8 @@ const CierreSemanal = () => {
     const hoy = new Date();
     const hora = hoy.getHours();
 
-    // Permitir cierre cualquier día después de las 11:00
-    const puedeCerrarAhora = hora >= 11;
+    // Permitir cierre cualquier día después de las 8:00
+    const puedeCerrarAhora = hora >= 8;
     setPuedeCerrar(puedeCerrarAhora);
     return puedeCerrarAhora;
   };
