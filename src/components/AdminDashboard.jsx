@@ -14,6 +14,7 @@ import CierreSemanal from './CierreSemanal';
 import Modal from './Modal';
 import { getFirestore, collection, query, where, getDocs, setDoc, doc, deleteDoc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
 import ConfiguracionOpciones from './ConfiguracionOpciones';
+import ImagenesMenu from './ImagenesMenu';
 import './AdminDashboard.css';
 
 const AdminDashboard = ({ userRole }) => {
@@ -228,6 +229,13 @@ const AdminDashboard = ({ userRole }) => {
     }, 100);
   };
 
+  const handleImagenesMenu = () => {
+    setActiveSection('imagenesMenu');
+    setTimeout(() => {
+      backButtonRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   const handleCerrarSesion = async () => {
     try {
       await signOut(auth);
@@ -375,6 +383,8 @@ const AdminDashboard = ({ userRole }) => {
         return <PrecioMenu readOnly={isVisor} />;
       case 'configuracionOpciones':
         return <ConfiguracionOpciones readOnly={isVisor} />;
+      case 'imagenesMenu':
+        return <ImagenesMenu readOnly={isVisor} />;
       default:
         return null;
     }
@@ -419,6 +429,10 @@ const AdminDashboard = ({ userRole }) => {
           <button className="admin-button" style={{ backgroundColor: '#5c47d3' }} onClick={handleConfiguracionOpciones}>
             <span className="button-icon">⚙️</span>
             Configurar Opciones del Menú
+          </button>
+          <button className="admin-button" style={{ backgroundColor: '#7b3f9e' }} onClick={handleImagenesMenu}>
+            <span className="button-icon">🖼️</span>
+            Imágenes de Menús
           </button>
           <button className="admin-button" style={{ backgroundColor: '#88bc27' }} onClick={handleVerPedidosActual}>
             <span className="button-icon">📋</span>

@@ -14,7 +14,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual', readOnly = false }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [editingField, setEditingField] = useState(null); // { dia, campo, subCampo? }
+  const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef(null);

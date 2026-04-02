@@ -3,11 +3,19 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { catalogDb } from '../firebase';
 import Modal from './Modal';
 import Spinner from './Spinner';
 import "./Formulario.css";
 
 const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+// Normaliza texto para comparación flexible: sin tildes, sin puntuación, sin mayúsculas, sin espacios extra
+const normalizarTexto = (t) =>
+  (t ?? '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // quita tildes: á→a, é→e, etc.
+    .replace(/[^a-z0-9\s]/gi, '')                       // quita puntuación y símbolos
+    .replace(/\s+/g, ' ');                              // colapsa espacios múltiples
 
 const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   const [data, setData] = useState({
@@ -49,8 +57,9 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   const [precioMenu, setPrecioMenu] = useState(2000);
   const [porcentajeBonificacion, setPorcentajeBonificacion] = useState(70);
 
-  // --- Cascada selects ---
   const [opcionesCascada, setOpcionesCascada] = useState(null);
+  const [textoImagenes, setTextoImagenes] = useState({});
+  const [lightboxImg, setLightboxImg] = useState(null);
   const [seleccion, setSeleccion] = useState({
     lunes: { menu: '', postre: '', bebida: '' },
     martes: { menu: '', postre: '', bebida: '' },
@@ -200,6 +209,34 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     return `Lunes ${pad(lunes.getDate())} al Viernes ${pad(viernes.getDate())}`;
   }
 
+  // Event delegation para clicks en los tooltips de imagen + tecla Escape para cerrar lightbox
+  useEffect(() => {
+    const handleClick = (e) => {
+      const tooltipEl = e.target.closest('[data-lightbox-url]');
+      if (tooltipEl) {
+        const url = tooltipEl.dataset.lightboxUrl;
+        if (url) {
+          tooltipEl.style.setProperty('display', 'none', 'important');
+          setLightboxImg(url);
+        }
+      }
+    };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.menu-img-tooltip').forEach(el => {
+          el.style.removeProperty('display');
+        });
+        setLightboxImg(null);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, []);
+
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
@@ -219,6 +256,12 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
         if (opcionesSnap.exists()) {
           setOpcionesMenuConfig(opcionesSnap.data());
         }
+
+        // Cargar imágenes de platos desde el catálogo central (compartido entre clientes)
+        const imagenesRef = doc(catalogDb, 'config', 'textoImagenes');
+        const imagenesSnap = await getDoc(imagenesRef);
+        const imgsLocales = imagenesSnap.exists() ? imagenesSnap.data() : {};
+        setTextoImagenes(imgsLocales); // para re-renders futuros
 
         // Cargar opciones en cascada (nuevo)
         const cascadaRef = doc(db, 'config', 'opcionesMenuCascada');
@@ -392,17 +435,47 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       );
                     }
                     if (key === 'postre') {
+                      const items = value.split('/').map(s => s.replace(/\./g, '').trim()).filter(Boolean);
                       return (
                         <div key={key} className="postre">
                           <h4>Postre</h4>
-                          <p>{value}</p>
+                          {items.map((item, i) => {
+                            const imgDataP = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(item))?.[1];
+                            const imgUrlP = imgDataP?.url;
+                            return (
+                              <div key={i} className={`menu-item-desc-wrap${imgUrlP ? ' has-img-tooltip' : ''}`}>
+                                <p className="menu-item-desc">{item}</p>
+                                {imgUrlP && (
+                                  <div className="menu-img-tooltip" data-lightbox-url={imgUrlP}>
+                                    <img src={imgUrlP} alt={item} onError={e => { e.target.style.display = 'none'; }} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     }
+                    const imgData = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                    const imgUrl = imgData?.url;
                     return (
                       <div key={key} className="menu-item">
                         <h4>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</h4>
-                        <p>{value}</p>
+                        <div className={`menu-item-desc-wrap${imgUrl ? ' has-img-tooltip' : ''}`}>
+                          <p className="menu-item-desc">{value}</p>
+                          {imgUrl && (
+                            <div
+                              className="menu-img-tooltip"
+                              data-lightbox-url={imgUrl}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={value}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -443,17 +516,47 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       );
                     }
                     if (key === 'postre') {
+                      const items = value.split('/').map(s => s.replace(/\./g, '').trim()).filter(Boolean);
                       return (
                         <div key={key} className="postre">
                           <h4>Postre</h4>
-                          <p>{value}</p>
+                          {items.map((item, i) => {
+                            const imgDataP = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(item))?.[1];
+                            const imgUrlP = imgDataP?.url;
+                            return (
+                              <div key={i} className={`menu-item-desc-wrap${imgUrlP ? ' has-img-tooltip' : ''}`}>
+                                <p className="menu-item-desc">{item}</p>
+                                {imgUrlP && (
+                                  <div className="menu-img-tooltip" data-lightbox-url={imgUrlP}>
+                                    <img src={imgUrlP} alt={item} onError={e => { e.target.style.display = 'none'; }} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     }
+                    const imgData = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                    const imgUrl = imgData?.url;
                     return (
                       <div key={key} className="menu-item">
                         <h4>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</h4>
-                        <p>{value}</p>
+                        <div className={`menu-item-desc-wrap${imgUrl ? ' has-img-tooltip' : ''}`}>
+                          <p className="menu-item-desc">{value}</p>
+                          {imgUrl && (
+                            <div
+                              className="menu-img-tooltip"
+                              data-lightbox-url={imgUrl}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={value}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -461,7 +564,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             MIERCOLES: menuData.dias.miercoles?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este dÃ­a
+                FERIADO - No hay servicio de comida este día
               </div>
             ) : (
               <div className="menu-items">
@@ -494,17 +597,47 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       );
                     }
                     if (key === 'postre') {
+                      const items = value.split('/').map(s => s.replace(/\./g, '').trim()).filter(Boolean);
                       return (
                         <div key={key} className="postre">
                           <h4>Postre</h4>
-                          <p>{value}</p>
+                          {items.map((item, i) => {
+                            const imgDataP = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(item))?.[1];
+                            const imgUrlP = imgDataP?.url;
+                            return (
+                              <div key={i} className={`menu-item-desc-wrap${imgUrlP ? ' has-img-tooltip' : ''}`}>
+                                <p className="menu-item-desc">{item}</p>
+                                {imgUrlP && (
+                                  <div className="menu-img-tooltip" data-lightbox-url={imgUrlP}>
+                                    <img src={imgUrlP} alt={item} onError={e => { e.target.style.display = 'none'; }} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     }
+                    const imgData = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                    const imgUrl = imgData?.url;
                     return (
                       <div key={key} className="menu-item">
                         <h4>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</h4>
-                        <p>{value}</p>
+                        <div className={`menu-item-desc-wrap${imgUrl ? ' has-img-tooltip' : ''}`}>
+                          <p className="menu-item-desc">{value}</p>
+                          {imgUrl && (
+                            <div
+                              className="menu-img-tooltip"
+                              data-lightbox-url={imgUrl}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={value}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -512,7 +645,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             JUEVES: menuData.dias.jueves?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este dÃ­a
+                FERIADO - No hay servicio de comida este día
               </div>
             ) : (
               <div className="menu-items">
@@ -545,17 +678,47 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       );
                     }
                     if (key === 'postre') {
+                      const items = value.split('/').map(s => s.replace(/\./g, '').trim()).filter(Boolean);
                       return (
                         <div key={key} className="postre">
                           <h4>Postre</h4>
-                          <p>{value}</p>
+                          {items.map((item, i) => {
+                            const imgDataP = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(item))?.[1];
+                            const imgUrlP = imgDataP?.url;
+                            return (
+                              <div key={i} className={`menu-item-desc-wrap${imgUrlP ? ' has-img-tooltip' : ''}`}>
+                                <p className="menu-item-desc">{item}</p>
+                                {imgUrlP && (
+                                  <div className="menu-img-tooltip" data-lightbox-url={imgUrlP}>
+                                    <img src={imgUrlP} alt={item} onError={e => { e.target.style.display = 'none'; }} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     }
+                    const imgData = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                    const imgUrl = imgData?.url;
                     return (
                       <div key={key} className="menu-item">
                         <h4>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</h4>
-                        <p>{value}</p>
+                        <div className={`menu-item-desc-wrap${imgUrl ? ' has-img-tooltip' : ''}`}>
+                          <p className="menu-item-desc">{value}</p>
+                          {imgUrl && (
+                            <div
+                              className="menu-img-tooltip"
+                              data-lightbox-url={imgUrl}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={value}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -563,7 +726,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ),
             VIERNES: menuData.dias.viernes?.esFeriado ? (
               <div className="menu-opcion-feriado">
-                FERIADO - No hay servicio de comida este dÃ­a
+                FERIADO - No hay servicio de comida este día
               </div>
             ) : (
               <div className="menu-items">
@@ -596,17 +759,43 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                       );
                     }
                     if (key === 'postre') {
+                      const imgDataPostre = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                      const imgUrlPostre = imgDataPostre?.url;
                       return (
-                        <div key={key} className="postre">
+                        <div key={key} className={`postre${imgUrlPostre ? ' has-img-tooltip' : ''}`}
+                          style={{ position: 'relative' }}>
                           <h4>Postre</h4>
-                          <p>{value}</p>
+                          <div className={`menu-item-desc-wrap${imgUrlPostre ? ' has-img-tooltip' : ''}`}>
+                            <p className="menu-item-desc">{value}</p>
+                            {imgUrlPostre && (
+                              <div className="menu-img-tooltip" data-lightbox-url={imgUrlPostre}>
+                                <img src={imgUrlPostre} alt={value} onError={e => { e.target.style.display = 'none'; }} />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     }
+                    const imgData = Object.entries(imgsLocales).find(([k]) => normalizarTexto(k) === normalizarTexto(value))?.[1];
+                    const imgUrl = imgData?.url;
                     return (
                       <div key={key} className="menu-item">
                         <h4>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</h4>
-                        <p>{value}</p>
+                        <div className={`menu-item-desc-wrap${imgUrl ? ' has-img-tooltip' : ''}`}>
+                          <p className="menu-item-desc">{value}</p>
+                          {imgUrl && (
+                            <div
+                              className="menu-img-tooltip"
+                              data-lightbox-url={imgUrl}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={value}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -614,7 +803,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             )
           };
 
-          // console.log("MenÃº formateado:", menuFormateado);
+          // console.log("Menú formateado:", menuFormateado);
           setMenuSemanal(menuFormateado);
           setMenuData(menuData);
           setHayCambios(menuData.hayCambios || false);
@@ -1295,6 +1484,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   }
 
   return (
+    <>
     <div className="formulario-container">
       <Modal
         isOpen={modal.isOpen}
@@ -1607,6 +1797,29 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
         </>
       )}
     </div>
+
+      {/* Lightbox - imagen completa al hacer click */}
+      {lightboxImg && (() => {
+        const closeLightbox = () => {
+          // Restaurar tooltips que fueron ocultados manualmente
+          document.querySelectorAll('.menu-img-tooltip').forEach(el => {
+            el.style.removeProperty('display');
+          });
+          setLightboxImg(null);
+        };
+        return (
+          <div className="lightbox-overlay" onClick={closeLightbox}>
+            <button className="lightbox-close" onClick={closeLightbox}>✕</button>
+            <img
+              className="lightbox-img"
+              src={lightboxImg}
+              alt="Vista completa"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        );
+      })()}
+    </>
   );
 };
 
