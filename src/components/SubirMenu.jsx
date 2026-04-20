@@ -482,7 +482,7 @@ const SubirMenu = () => {
 
     const DAYS = { LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miercoles', JUEVES: 'jueves', VIERNES: 'viernes' };
     const STOP_DAYS = ['SABADO', 'DOMINGO'];
-    const STOP_CATS = ['PEDIDOS', 'POSTRE']; // POSTRE detiene la extracción; PEDIDOS detiene la línea de contacto al final
+    const STOP_CATS = ['PEDIDOS']; // PEDIDOS detiene la extracción al final del menú
 
     const result = {
       temporada: '', semana: '',
@@ -493,7 +493,7 @@ const SubirMenu = () => {
     };
 
     const lines = rawText.split('\n')
-      .map(l => l.replace(/ \| /g, ' / ').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim())
+      .map(l => l.replace(/\s*\|\s*/g, ' / ').replace(/\s+/g, ' ').trim())
       .filter(l => l && !l.match(/^-{3,}/));
 
     // Header: temporada y semana
@@ -503,9 +503,12 @@ const SubirMenu = () => {
     const semM = header.match(/SEMANA\s+\d+/i);
     if (semM) result.semana = semM[0].trim();
 
+    const postreKey = findKey('Postre', 'POSTRE') || 'postre';
+
     let currentDay = null;
     let currentCatKey = null;
     let stopCats = false;
+    let postreMode = false;
 
     for (const line of lines) {
       const ln = normKey(line);
@@ -514,14 +517,36 @@ const SubirMenu = () => {
       // Fin de semana -> parar
       if (STOP_DAYS.some(d => ln === d)) { currentDay = null; continue; }
 
-      // Encabezado de dia
-      const dayK = Object.keys(DAYS).find(d => normKey(d) === ln);
-      if (dayK) { currentDay = DAYS[dayK]; currentCatKey = null; stopCats = false; continue; }
+      // Encabezado de dia (startsWith para cubrir "JUEVES FERIADO AÑO NUEVO", etc.)
+      const dayK = Object.keys(DAYS).find(d => ln.startsWith(normKey(d)));
+      if (dayK) { currentDay = DAYS[dayK]; currentCatKey = null; stopCats = false; postreMode = false; continue; }
       if (!currentDay) continue;
 
-      // Detener categorias al llegar a POSTRES
-      if (STOP_CATS.some(k => ln.startsWith(k))) { stopCats = true; currentCatKey = null; continue; }
+      // PEDIDOS detiene la extracción completamente
+      if (STOP_CATS.some(k => ln.startsWith(k))) { stopCats = true; currentCatKey = null; postreMode = false; continue; }
       if (stopCats) continue;
+
+      // Detectar línea de POSTRE → entrar en modo postre
+      if (ln.startsWith('POSTRE')) {
+        const alias = ln.startsWith('POSTRESAELECCION') ? 'POSTRESAELECCION' : 'POSTRE';
+        const desc = extractDesc(line, alias).trim();
+        if (desc) {
+          result.dias[currentDay][postreKey] = desc;
+        }
+        currentCatKey = postreKey;
+        postreMode = true;
+        continue;
+      }
+
+      // Si estamos en modo postre, cada línea puede contener uno o más ítems separados por ' / '
+      if (postreMode) {
+        const items = line.split(' / ').map(i => i.trim()).filter(Boolean);
+        for (const item of items) {
+          const curr = result.dias[currentDay][postreKey];
+          result.dias[currentDay][postreKey] = curr ? curr + ' / ' + item : item;
+        }
+        continue;
+      }
 
       // Intentar hacer match de una categoria
       const catMatch = catEntries.find(([alias]) => ln.startsWith(alias));
