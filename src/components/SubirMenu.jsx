@@ -482,7 +482,7 @@ const SubirMenu = () => {
 
     const DAYS = { LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miercoles', JUEVES: 'jueves', VIERNES: 'viernes' };
     const STOP_DAYS = ['SABADO', 'DOMINGO'];
-    const STOP_CATS = ['PEDIDOS']; // Solo bloquear la linea de contacto al final
+    const STOP_CATS = ['PEDIDOS', 'POSTRE']; // POSTRE detiene la extracción; PEDIDOS detiene la línea de contacto al final
 
     const result = {
       temporada: '', semana: '',
