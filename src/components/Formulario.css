@@ -792,6 +792,18 @@
   word-break: break-word;
 }
 
+/* === Cartel informativo de imágenes === */
+.menu-img-hint-banner {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #aaa;
+  background: rgba(255, 160, 0, 0.07);
+  border: 1px solid rgba(255, 160, 0, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
 /* === Imagen del plato — tooltip al hacer hover === */
 .menu-item-desc-wrap {
   position: relative;
@@ -809,6 +821,15 @@
   cursor: help;
   text-decoration: underline dotted rgba(255, 160, 0, 0.5);
   text-underline-offset: 3px;
+}
+
+.has-img-tooltip .menu-item-desc::after {
+  content: "🖼️";
+  font-size: 0.95em;
+  margin-left: 6px;
+  opacity: 1;
+  vertical-align: middle;
+  pointer-events: none;
 }
 
 .menu-img-tooltip {
