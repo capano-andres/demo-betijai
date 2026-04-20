@@ -1606,7 +1606,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       {menuSemanal ? (
         <>
           <div className="menu-img-hint-banner">
-            🖼️ Pasá el mouse por encima de un plato para ver la foto. Hacé click para verla en pantalla completa.
+            Pasá el mouse por encima del texto de un plato para ver la foto o clickea en el icono 🖼️. Hacé click en la foto para verla en pantalla completa.
           </div>
           <div className="menu-semanal">
             <div className="menu-semanal-grid">
