@@ -17,6 +17,14 @@ const normalizarTexto = (t) =>
     .replace(/[^a-z0-9\s]/gi, '')                       // quita puntuación y símbolos
     .replace(/\s+/g, ' ');                              // colapsa espacios múltiples
 
+// Determina si un campo del menú de un día está vacío y no debe mostrarse
+const esCampoVacio = (key, value) => {
+  if (key === 'sandwichMiga') return !value?.tipo;
+  if (key === 'ensaladas') return !value?.ensalada1;
+  if (typeof value === 'string') return value.trim() === '';
+  return !value;
+};
+
 const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
   const [data, setData] = useState({
     lunes: "no_pedir",
@@ -407,7 +415,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ) : (
               <div className="menu-items">
                 {Object.entries(menuData.dias.lunes || {})
-                  .filter(([key]) => key !== 'esFeriado')
+                  .filter(([key, value]) => key !== 'esFeriado' && !esCampoVacio(key, value))
                   .sort(([keyA], [keyB]) => {
                     // Convertir las claves a un formato comparable
                     const formatKey = (key) => {
@@ -488,7 +496,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ) : (
               <div className="menu-items">
                 {Object.entries(menuData.dias.martes || {})
-                  .filter(([key]) => key !== 'esFeriado')
+                  .filter(([key, value]) => key !== 'esFeriado' && !esCampoVacio(key, value))
                   .sort(([keyA], [keyB]) => {
                     // Convertir las claves a un formato comparable
                     const formatKey = (key) => {
@@ -569,7 +577,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ) : (
               <div className="menu-items">
                 {Object.entries(menuData.dias.miercoles || {})
-                  .filter(([key]) => key !== 'esFeriado')
+                  .filter(([key, value]) => key !== 'esFeriado' && !esCampoVacio(key, value))
                   .sort(([keyA], [keyB]) => {
                     // Convertir las claves a un formato comparable
                     const formatKey = (key) => {
@@ -650,7 +658,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ) : (
               <div className="menu-items">
                 {Object.entries(menuData.dias.jueves || {})
-                  .filter(([key]) => key !== 'esFeriado')
+                  .filter(([key, value]) => key !== 'esFeriado' && !esCampoVacio(key, value))
                   .sort(([keyA], [keyB]) => {
                     // Convertir las claves a un formato comparable
                     const formatKey = (key) => {
@@ -731,7 +739,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             ) : (
               <div className="menu-items">
                 {Object.entries(menuData.dias.viernes || {})
-                  .filter(([key]) => key !== 'esFeriado')
+                  .filter(([key, value]) => key !== 'esFeriado' && !esCampoVacio(key, value))
                   .sort(([keyA], [keyB]) => {
                     // Convertir las claves a un formato comparable
                     const formatKey = (key) => {
